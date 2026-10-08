@@ -1,0 +1,122 @@
+// Attestation bridge persistence. uint256 chain values (worker, shift ids, amounts) are decimal strings.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model CompanyProfile {
+  id String @id
+  name String
+}
+
+model ConsumedAuthorization {
+  id String @id
+  deadline BigInt
+}
+
+model WorkerProfile {
+  workerId String @id
+  name String
+  role String
+  department String
+  notes String @default("")
+}
+
+enum ClockType {
+  CLOCK_IN
+  CLOCK_OUT
+}
+
+enum ShiftStatus {
+  OPEN
+  CLOSED
+}
+
+enum AttestationKind {
+  OPEN
+  CLOSE
+  CORRECTION
+}
+
+enum TxKind {
+  OPEN_SHIFT
+  CLOSE_SHIFT
+  CORRECT_SHIFT
+  WITHDRAW
+}
+
+enum TxStatus {
+  QUEUED
+  SUBMITTED
+  CONFIRMED
+  FAILED
+}
+
+/// Raw timekeeping events. The idempotency key makes webhook retries harmless.
+model ClockEvent {
+  id             String    @id @default(cuid())
+  idempotencyKey String    @unique
+  workerId       String
+  type           ClockType
+  at             BigInt
+  shiftId        String?
+  receivedAt     DateTime  @default(now())
+}
+
+model Shift {
+  id           String        @id // on-chain shiftId
+  workerId     String
+  status       ShiftStatus
+  startAt      BigInt
+  endAt        BigInt?
+  ratePerHour  String?
+  gross        String?
+  version      Int           @default(0)
+  attestations Attestation[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([workerId, status])
+}
+
+/// Every EIP-712 record the attestor signed, kept so workers can verify their history.
+model Attestation {
+  id        String          @id @default(cuid())
+  kind      AttestationKind
+  shiftId   String
+  shift     Shift           @relation(fields: [shiftId], references: [id])
+  version   Int             @default(0)
+  message   Json
+  signature String
+  signer    String
+  deadline  BigInt
+  createdAt DateTime        @default(now())
+  txs       ChainTx[]
+}
+
+model ChainTx {
+  id            String       @id @default(cuid())
+  kind          TxKind
+  workerId      String
+  shard         Int
+  attestationId String?
+  attestation   Attestation? @relation(fields: [attestationId], references: [id])
+  params        Json?
+  status        TxStatus     @default(QUEUED)
+  sender        String?
+  hash          String?
+  blockNumber   BigInt?
+  attempts      Int          @default(0)
+  nextAttemptAt DateTime     @default(now())
+  lastError     String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([workerId])
+}

@@ -1,0 +1,1 @@
+ALTER TABLE "WorkerProfile" ADD COLUMN "notes" TEXT NOT NULL DEFAULT '';
