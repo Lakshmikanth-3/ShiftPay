@@ -3,9 +3,11 @@ import {describe,it,expect} from 'vitest';
 import {createPublicClient,defineChain,http,erc20Abi,isAddress,type Address} from 'viem';
 import {metronomeVaultAbi} from '../src/abi/metronomeVault.js';
 
-const employer:Address='0x4e3f8497F732326CFB8cC4d17Ad0688b74582776';
+if(!isAddress(process.env.TESTNET_EMPLOYER_ADDRESS || ''))throw new Error('Set TESTNET_EMPLOYER_ADDRESS to the actual registered Mera company address');
+const employer=process.env.TESTNET_EMPLOYER_ADDRESS as Address;
 const tokens={AUSD:'0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC',USDC:'0x534b2f3A21130d7a60830c2Df862319e593943A3'} as const;
-const origin=process.env.TESTNET_APP_URL || 'https://shiftpay-monad-payroll.vercel.app';
+if(!process.env.TESTNET_APP_URL)throw new Error('Set TESTNET_APP_URL to the actual approved business deployment');
+const origin=process.env.TESTNET_APP_URL;
 if(new URL(origin).protocol!=='https:')throw new Error('Live acceptance requires the actual public HTTPS app URL');
 const chain=defineChain({id:10143,name:'Monad Testnet',nativeCurrency:{name:'MON',symbol:'MON',decimals:18},rpcUrls:{default:{http:['https://testnet-rpc.monad.xyz/']}}});
 const client=createPublicClient({chain,transport:http(undefined,{timeout:20000,retryCount:1})});

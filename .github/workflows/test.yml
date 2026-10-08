@@ -1,0 +1,50 @@
+name: ShiftPay test suites
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  payroll:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: metronome
+          POSTGRES_PASSWORD: metronome
+          POSTGRES_DB: metronome
+        ports: ['5433:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: foundry-rs/foundry-toolchain@v1
+      - name: Install contract dependencies
+        run: npm ci
+        working-directory: metronome/contracts
+      - name: Contract security, fuzz and invariants
+        run: forge test --summary
+        working-directory: metronome/contracts
+      - name: Install bridge dependencies
+        run: npm ci
+        working-directory: metronome/bridge
+      - name: Generate Prisma client
+        run: npm run generate
+        working-directory: metronome/bridge
+      - name: Backend types and PostgreSQL integration
+        run: npm run typecheck && npm test
+        working-directory: metronome/bridge
+      - name: Install dashboard dependencies
+        run: npm ci
+        working-directory: metronome/app
+      - name: Wallet and funding tests, production build
+        run: npm run check
+        working-directory: metronome/app
