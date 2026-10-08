@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: shiftpay
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a strong hexadecimal database password}
+      POSTGRES_DB: shiftpay_ausd
+    volumes:
+      - payroll_database:/var/lib/postgresql/data
+      - ./init-databases.sql:/docker-entrypoint-initdb.d/02-databases.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U shiftpay -d shiftpay_ausd']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  ausd:
+    build: ../bridge
+    restart: unless-stopped
+    env_file: .env.ausd
+    environment:
+      DATABASE_URL: postgresql://shiftpay:${POSTGRES_PASSWORD:?Database password required}@postgres:5432/shiftpay_ausd?schema=public
+      MONAD_CHAIN_ID: '10143'
+      MONAD_RPC_URL: https://testnet-rpc.monad.xyz/
+      PORT: '8787'
+      SETTLEMENT_ASSET: AUSD
+      EXPECTED_EMPLOYER_ADMIN: '0x4e3f8497F732326CFB8cC4d17Ad0688b74582776'
+    depends_on:
+      postgres:
+        condition: service_healthy
+  usdc:
+    build: ../bridge
+    restart: unless-stopped
+    env_file: .env.usdc
+    environment:
+      DATABASE_URL: postgresql://shiftpay:${POSTGRES_PASSWORD:?Database password required}@postgres:5432/shiftpay_usdc?schema=public
+      MONAD_CHAIN_ID: '10143'
+      MONAD_RPC_URL: https://testnet-rpc.monad.xyz/
+      PORT: '8787'
+      SETTLEMENT_ASSET: USDC
+      EXPECTED_EMPLOYER_ADMIN: '0x4e3f8497F732326CFB8cC4d17Ad0688b74582776'
+    depends_on:
+      postgres:
+        condition: service_healthy
+  https:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      AUSD_HOST: ${AUSD_HOST:?Set the actual AUSD bridge hostname}
+      USDC_HOST: ${USDC_HOST:?Set the actual USDC bridge hostname}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - https_data:/data
+      - https_config:/config
+    depends_on:
+      - ausd
+      - usdc
+volumes:
+  payroll_database:
+  https_data:
+  https_config:

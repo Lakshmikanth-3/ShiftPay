@@ -1,0 +1,86 @@
+# Real testnet backend; the frontend stays on Vercel.
+# Free plans are for the demo and do not provide 24/7 uptime.
+services:
+  - type: web
+    name: shiftpay-ausd
+    runtime: node
+    plan: free
+    rootDir: metronome/bridge
+    buildCommand: npm ci --no-audit --no-fund && npm run generate && npm run typecheck
+    startCommand: node scripts/start-hosted.mjs
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: DATABASE_URL
+        fromDatabase:
+          name: shiftpay-payroll
+          property: connectionString
+      - key: DATABASE_SCHEMA
+        value: ausd
+      - key: SETTLEMENT_ASSET
+        value: AUSD
+      - key: EXPECTED_EMPLOYER_ADMIN
+        sync: false
+      - key: MONAD_CHAIN_ID
+        value: '10143'
+      - key: MONAD_RPC_URL
+        value: https://testnet-rpc.monad.xyz/
+      - key: VAULT_ADDRESS
+        sync: false
+      - key: VAULT_DEPLOY_BLOCK
+        sync: false
+      - key: EMPLOYER_ID
+        sync: false
+      - key: ATTESTOR_PRIVATE_KEY
+        sync: false
+      - key: RELAYER_PRIVATE_KEYS
+        sync: false
+      - key: WEBHOOK_SECRET
+        generateValue: true
+      - key: ADMIN_API_TOKEN
+        generateValue: true
+  - type: web
+    name: shiftpay-usdc
+    runtime: node
+    plan: free
+    rootDir: metronome/bridge
+    buildCommand: npm ci --no-audit --no-fund && npm run generate && npm run typecheck
+    startCommand: node scripts/start-hosted.mjs
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: DATABASE_URL
+        fromDatabase:
+          name: shiftpay-payroll
+          property: connectionString
+      - key: DATABASE_SCHEMA
+        value: usdc
+      - key: SETTLEMENT_ASSET
+        value: USDC
+      - key: EXPECTED_EMPLOYER_ADMIN
+        sync: false
+      - key: MONAD_CHAIN_ID
+        value: '10143'
+      - key: MONAD_RPC_URL
+        value: https://testnet-rpc.monad.xyz/
+      - key: VAULT_ADDRESS
+        sync: false
+      - key: VAULT_DEPLOY_BLOCK
+        sync: false
+      - key: EMPLOYER_ID
+        sync: false
+      - key: ATTESTOR_PRIVATE_KEY
+        sync: false
+      - key: RELAYER_PRIVATE_KEYS
+        sync: false
+      - key: WEBHOOK_SECRET
+        generateValue: true
+      - key: ADMIN_API_TOKEN
+        generateValue: true
+databases:
+  - name: shiftpay-payroll
+    plan: free
+    databaseName: shiftpay
+    user: shiftpay
