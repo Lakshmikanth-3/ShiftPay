@@ -1,0 +1,10 @@
+{
+  "AUSD": {
+    "attestor": "0xe9Ae599d430401A3193895a98d591B99d687F884",
+    "relayer": "0x2FcE83C7Ea6708e831F9D5bD9F12A8154587CfAD"
+  },
+  "USDC": {
+    "attestor": "0xEf4de9Baa7A0F32E686AC7984b3f7594EFA6f799",
+    "relayer": "0xC3cDFA6fB75c91c1B26A6067111b1679e2edE494"
+  }
+}

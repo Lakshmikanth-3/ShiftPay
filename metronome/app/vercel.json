@@ -1,0 +1,1 @@
+{"$schema":"https://openapi.vercel.sh/vercel.json","framework":"nextjs","buildCommand":"npm run build","installCommand":"npx --yes npm@11.13.0 ci","env":{"NEXT_PUBLIC_CHAIN_ID":"10143","NEXT_PUBLIC_RPC_URL":"https://testnet-rpc.monad.xyz/","NEXT_PUBLIC_PRIVY_APP_ID":"cmuxon0z3000x0cjkjw1247eo"}}

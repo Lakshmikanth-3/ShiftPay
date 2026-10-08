@@ -1,0 +1,10 @@
+node_modules/
+assets/
+.env
+.env.local
+.next/
+.next-build/
+public/preview/
+vault-abi.mjs
+
+.vercel
