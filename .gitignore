@@ -1,0 +1,17 @@
+**/node_modules/
+**/.next/
+**/.next-build/
+**/.next-release/
+**/.next-sponsors/
+**/.env*
+!**/.env.example
+**/browser-profile/
+**/*.log
+**/.vercel/
+data/
+**/out/
+**/cache/
+**/broadcast/
+**/vault-abi.mjs
+**/public/icon-192.png
+**/public/icon-512.png
