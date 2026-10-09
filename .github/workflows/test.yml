@@ -48,3 +48,16 @@ jobs:
       - name: Wallet and funding tests, production build
         run: npm run check
         working-directory: metronome/app
+      - name: Responsive dashboards and login regression
+        working-directory: metronome/app
+        env:
+          TARGET_URL: http://127.0.0.1:3000
+        run: |
+          npm start -- --port 3000 > /tmp/shiftpay-preview.log 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid"' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail "$TARGET_URL" > /dev/null; then break; fi
+            sleep 1
+          done
+          npm run test:browser

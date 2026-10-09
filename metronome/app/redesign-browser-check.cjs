@@ -1,7 +1,8 @@
 const {spawn}=require('node:child_process');
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const dir=path.resolve(__dirname,'../../data/connected-qa');fs.mkdirSync(dir,{recursive:true});
-const child=spawn('C:/Program Files/Google/Chrome/Application/chrome.exe',['--headless=new','--disable-gpu','--disable-quic','--no-first-run','--no-default-browser-check','--remote-debugging-port=9227','--user-data-dir='+path.join(dir,'redesign-browser-profile'),'about:blank'],{windowsHide:true,stdio:'ignore'});
+const chrome=process.env.CHROME_PATH||(process.platform==='win32'?'C:/Program Files/Google/Chrome/Application/chrome.exe':'google-chrome');
+const child=spawn(chrome,['--headless=new','--disable-gpu','--disable-quic','--no-first-run','--no-default-browser-check','--remote-debugging-port=9227','--user-data-dir='+path.join(dir,'redesign-browser-profile'),'about:blank'],{windowsHide:true,stdio:'ignore'});
 const pause=ms=>new Promise(r=>setTimeout(r,ms));let socket;
 (async()=>{
   let targets;for(let i=0;i<60;i++){try{targets=await(await fetch('http://127.0.0.1:9227/json/list')).json();break;}catch{await pause(250);}}
