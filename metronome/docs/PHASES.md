@@ -6,13 +6,13 @@ Local tests do not prove hosted payroll works. This checklist replaces the earli
 
 Gross accrual stops at funded allocation. Top-ups resume from receipt time without paying paused intervals. Historical clock-out respects funding at its attested end. Suspension pauses accrual, and on-shift rate changes are rejected. Unfunded settlement and corrections consuming open reserves revert.
 
-Verification: 36 unit/fuzz tests and 5 stateful invariants passed. Backend verification: 37 tests passed against the updated contract, including PostgreSQL integration.
+Verification: 36 unit/fuzz tests and 5 stateful invariants passed. Backend verification: 38 tests passed against the updated contract, including PostgreSQL integration and public-account preflight.
 
 ## 2. Connected dashboards: local verification
 
 Separate business and employee routes use real contract reads and signed actions. Company registration requires Mera. Employees use Mera or Privy email embedded accounts. External MetaMask controls and public simulation are removed. Profiles, employee notes and settlement histories persist through the bridge.
 
-Verification: 19 wallet/funding tests, 23 localhost browser checks and 22 public production browser checks passed. Production build passed. These public checks do not prove authenticated payroll settlement.
+Verification: 23 wallet/funding tests, 23 localhost browser checks, 22 public production browser checks and 22 Selenium checks passed. Production build passed. These public checks do not prove authenticated payroll settlement.
 
 ## 3. GitHub and hosting: in progress
 
@@ -26,7 +26,7 @@ Render has two token-specific bridges and PostgreSQL schemas. Its administrator 
 
 ## 4. Owner setup and real testnet acceptance: pending
 
-1. Create the company passkey on the stable business domain.
+1. Company passkey created: owner confirmed public address 0x430ff06AB045911e5dC6B7a742ddC11f27F47487 on the stable business domain.
 2. Fund its resulting public address with test MON and issuer USDC/AUSD.
 3. Sign real vault deployment and employer registration.
 4. Configure actual vault, employer, receipt block and service credentials privately on Render.

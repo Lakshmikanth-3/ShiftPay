@@ -21,7 +21,7 @@ services:
       - key: SETTLEMENT_ASSET
         value: AUSD
       - key: EXPECTED_EMPLOYER_ADMIN
-        sync: false
+        value: '0x430ff06AB045911e5dC6B7a742ddC11f27F47487'
       - key: MONAD_CHAIN_ID
         value: '10143'
       - key: MONAD_RPC_URL
@@ -60,7 +60,7 @@ services:
       - key: SETTLEMENT_ASSET
         value: USDC
       - key: EXPECTED_EMPLOYER_ADMIN
-        sync: false
+        value: '0x430ff06AB045911e5dC6B7a742ddC11f27F47487'
       - key: MONAD_CHAIN_ID
         value: '10143'
       - key: MONAD_RPC_URL

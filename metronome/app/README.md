@@ -14,6 +14,7 @@ Company profiles, employee notes, allocations and settlement histories are handl
 - npm run check: unit suite plus production build.
 - npm run test:browser: localhost route, mobile and login checks; set TARGET_URL=http://127.0.0.1:3000.
 - npm run test:production: approved public portal checks.
+- python selenium-test.py: Selenium checks against the live portals and actual public company balance; install requirements-test.txt first.
 
 Browser runners use an isolated Chrome profile. On Linux, Chrome must be on PATH or supplied through CHROME_PATH. Reports live under root data and are excluded from Git.
 
