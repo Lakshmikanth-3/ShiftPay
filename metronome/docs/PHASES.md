@@ -12,7 +12,7 @@ Verification: 36 unit/fuzz tests and 5 stateful invariants passed. Backend verif
 
 Separate business and employee routes use real contract reads and signed actions. Company registration requires Mera. Employees use Mera or Privy email embedded accounts. External MetaMask controls and public simulation are removed. Profiles, employee notes and settlement histories persist through the bridge.
 
-Verification: 24 wallet/funding tests, 23 localhost browser checks, 22 public production browser checks and 22 Selenium checks passed. Production build passed. These public checks do not prove authenticated payroll settlement.
+Verification: 25 wallet/funding tests, 23 localhost browser checks, 22 public production browser checks and 22 Selenium checks passed. Production build passed. These public checks do not prove authenticated payroll settlement. Saved company registration can be displayed while the signing session is locked; signing still requires the actual Mera session.
 
 ## 3. GitHub and hosting: in progress
 

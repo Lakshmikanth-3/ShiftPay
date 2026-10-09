@@ -1,6 +1,17 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {assertSetupFunding} from './setup-funding.mjs';
+import {loadSetupRecord} from './deployment-store.mjs';
+
+test('registration state survives a locked signing session',()=>{
+  const company='0x1111111111111111111111111111111111111111',token='0x2222222222222222222222222222222222222222';
+  const record={chainId:10143,company,token,employerId:'1'};
+  const storage={getItem:key=>key===`shiftpay:deployment:10143:${company}:USDC`?JSON.stringify(record):null};
+  assert.deepEqual(loadSetupRecord(storage,company,'USDC',token),record);
+  assert.equal(loadSetupRecord(storage,'','USDC',token),null);
+  assert.equal(loadSetupRecord(storage,company,'AUSD',token),null);
+  assert.throws(()=>loadSetupRecord(storage,company,'USDC',company),/does not match/);
+});
 
 test('zero-MON setup stops with a readable funding explanation',()=>{
   assert.throws(()=>assertSetupFunding({balance:0n,gas:8565478n,maxFeePerGas:182400000000n}),/Add test MON.*Balance: 0 MON/);

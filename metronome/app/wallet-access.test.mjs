@@ -12,7 +12,10 @@ test('Privy uses email login and filters previously linked external wallets',()=
   assert.match(source,/createOnLogin:'all-users'/);
 });
 test('company registration requires the actual Mera signer',()=>{
-  const source=read('deployment.jsx');assert.match(source,/const company=payroll\.meraWallet\?\.address\|\|''/);
+  const source=read('deployment.jsx');assert.match(source,/const company=payroll\.meraWallet\?\.address\|\|savedCompany/);
+  assert.match(source,/const active=payroll\.meraWallet;if\(!active\|\|active\.address\.toLowerCase\(\)!==company\.toLowerCase\(\)\)/);
+  assert.match(source,/!companyName\.trim\(\)\|\|!payroll\.meraWallet/);
+  assert.match(source,/setup-technical" open=\{!!record\}/);
   assert.doesNotMatch(source,/eth_requestAccounts|wallet_requestPermissions|connectStep/);
   assert.match(source,/Unlock the company payroll passkey first/);
 });
