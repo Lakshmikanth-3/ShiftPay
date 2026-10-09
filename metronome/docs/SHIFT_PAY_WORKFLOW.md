@@ -4,7 +4,7 @@
 
 - Previously funded external company address and still-approved testnet tax recipient: `0x4e3f8497F732326CFB8cC4d17Ad0688b74582776`
 - Previously supplied external employee address: `0x306037A2FdE5e44C0bd2f017BfC4fDB3Cd0bAa1D`. New employee registration must use the actual account the employee can sign with in ShiftPay; the form no longer prefills this external address.
-- Company signing account: `0x430ff06AB045911e5dC6B7a742ddC11f27F47487`, confirmed by the owner after creating the real Mera passkey on the business domain. Initial read-only checks found zero MON and USDC; owner funding is pending.
+- Company signing account: `0x430ff06AB045911e5dC6B7a742ddC11f27F47487`, confirmed by the owner after creating the real Mera passkey on the business domain. Read-only checks after owner funding confirmed 3 MON and zero USDC. Registration can proceed; wage-token funding remains pending.
 - Vercel account verified: `lakshmikanth.27csb@licet.ac.in`
 - Live, publicly checked domains: `shiftpay-business.vercel.app`, `shiftpay-employee.vercel.app`. Public route/login checks are not proof of authenticated payroll settlement.
 

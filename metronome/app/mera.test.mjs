@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {verifyMessage,verifyTypedData} from 'viem';
+import {verifyMessage,verifyTypedData,encodeDeployData,parseTransaction,recoverTransactionAddress} from 'viem';
+import {readFileSync} from 'node:fs';
 import {derivePayrollSession,readMeraMetadata,meraStorageKey} from './mera.mjs';
 
 // Fixed entropy is only a unit-test input. UI accounts require real WebAuthn PRF.
@@ -29,6 +30,20 @@ test('payroll typed-data signatures verify for the derived account',async()=>{
 test('ending the signing session prevents further signing',async()=>{
   const {session,account}=derivePayrollSession(new Uint8Array(32).fill(20));session.end();
   await assert.rejects(account.signMessage({message:'Must not sign'}),e=>e.code==='SESSION_ENDED');
+});
+test('Mera signs a valid Monad deployment transaction for its actual session account',async()=>{
+  const {session,account}=derivePayrollSession(new Uint8Array(32).fill(21));
+  const abi=JSON.parse(readFileSync(new URL('./vault-abi.json',import.meta.url),'utf8'));
+  const {bytecode}=JSON.parse(readFileSync(new URL('./deployment-artifact.json',import.meta.url),'utf8'));
+  const data=encodeDeployData({abi,bytecode,args:['0x534b2f3A21130d7a60830c2Df862319e593943A3']});
+  try{
+    const transaction={type:'eip1559',chainId:10143,nonce:0,gas:8565478n,maxFeePerGas:182400000000n,maxPriorityFeePerGas:2000000000n,value:0n,data};
+    const serializedTransaction=await account.signTransaction(transaction);
+    const decoded=parseTransaction(serializedTransaction);
+    assert.equal(decoded.chainId,10143);assert.equal(decoded.data,data);assert.equal(decoded.gas,transaction.gas);
+    assert.equal((await recoverTransactionAddress({serializedTransaction})).toLowerCase(),account.address.toLowerCase());
+    session.end();await assert.rejects(account.signTransaction(transaction),error=>error.code==='SESSION_ENDED');
+  }finally{session.end();}
 });
 test('invalid passkey output is rejected',()=>{
   assert.throws(()=>derivePayrollSession(new Uint8Array(31)),/usable/);

@@ -12,7 +12,7 @@ Verification: 36 unit/fuzz tests and 5 stateful invariants passed. Backend verif
 
 Separate business and employee routes use real contract reads and signed actions. Company registration requires Mera. Employees use Mera or Privy email embedded accounts. External MetaMask controls and public simulation are removed. Profiles, employee notes and settlement histories persist through the bridge.
 
-Verification: 23 wallet/funding tests, 23 localhost browser checks, 22 public production browser checks and 22 Selenium checks passed. Production build passed. These public checks do not prove authenticated payroll settlement.
+Verification: 24 wallet/funding tests, 23 localhost browser checks, 22 public production browser checks and 22 Selenium checks passed. Production build passed. These public checks do not prove authenticated payroll settlement.
 
 ## 3. GitHub and hosting: in progress
 
@@ -27,8 +27,8 @@ Render has two token-specific bridges and PostgreSQL schemas. Its administrator 
 ## 4. Owner setup and real testnet acceptance: pending
 
 1. Company passkey created: owner confirmed public address 0x430ff06AB045911e5dC6B7a742ddC11f27F47487 on the stable business domain.
-2. Fund its resulting public address with test MON and issuer USDC/AUSD.
-3. Sign real vault deployment and employer registration.
+2. Three test MON confirmed in the Mera company account; issuer USDC/AUSD wage funding remains pending.
+3. USDC vault 0xA1C794EA48A1D86294848D28E85c76328070DB24 and employer ID 1 verified through public contract reads. Administrator, attestor and tax recipient match the approved accounts. Exact deployment receipt collection and AUSD setup remain pending.
 4. Configure actual vault, employer, receipt block and service credentials privately on Render.
 5. Create the employee's supported account and supply its public payout address.
 6. Register the employee, save notes and fund its allocation.
