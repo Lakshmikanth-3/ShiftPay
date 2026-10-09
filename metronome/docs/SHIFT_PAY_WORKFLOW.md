@@ -6,7 +6,7 @@
 - Previously supplied external employee address: `0x306037A2FdE5e44C0bd2f017BfC4fDB3Cd0bAa1D`. New employee registration must use the actual account the employee can sign with in ShiftPay; the form no longer prefills this external address.
 - Company signing account: derived from the owner's real Mera passkey after creation/unlock. No replacement address is invented or assigned before that ceremony.
 - Vercel account verified: `lakshmikanth.27csb@licet.ac.in`
-- Reserved domains: `shiftpay-business.vercel.app`, `shiftpay-employee.vercel.app`. Reservation is not deployment.
+- Live, publicly checked domains: `shiftpay-business.vercel.app`, `shiftpay-employee.vercel.app`. Public route/login checks are not proof of authenticated payroll settlement.
 
 ## Product flow
 
@@ -20,7 +20,7 @@
 
 - Deployed token-specific payroll vaults and confirmed employer IDs, including `VAULT_DEPLOY_BLOCK` from each real deployment receipt.
 - Hosted Render services and database with migrations, attestor/relayer configuration and funded service accounts.
-- Vercel frontend deployment to the reserved domains, correct product environment and actual bridge URLs.
+- Actual Render bridge URLs configured on both live Vercel products; current sites truthfully show payroll setup pending.
 - Privy allowed origins for the new domains; owner email login and real Mera passkey ceremonies on the final hosts.
 - Real testnet shift, funding and withdrawal acceptance tests.
 - Measured real-network benchmark.

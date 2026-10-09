@@ -12,7 +12,7 @@ Verification: 36 unit/fuzz tests and 5 stateful invariants passed. Backend verif
 
 Separate business and employee routes use real contract reads and signed actions. Company registration requires Mera. Employees use Mera or Privy email embedded accounts. External MetaMask controls and public simulation are removed. Profiles, employee notes and settlement histories persist through the bridge.
 
-Verification: 19 wallet/funding tests passed; production build passed. Browser regression must pass for the final release.
+Verification: 19 wallet/funding tests, 23 localhost browser checks and 22 public production browser checks passed. Production build passed. These public checks do not prove authenticated payroll settlement.
 
 ## 3. GitHub and hosting: in progress
 
@@ -20,7 +20,7 @@ Repository: https://github.com/Lakshmikanth-3/ShiftPay
 
 Source commits stay below 1,000 changed lines. The owner permits separate larger lockfile and generated ABI commits. Timestamps are actual creation times, with no fabricated hackathon history.
 
-Only approved Vercel destinations: shiftpay-business.vercel.app and shiftpay-employee.vercel.app, under lakshmikanth.27csb@licet.ac.in. Domain reservation alone is not deployment.
+Both approved Vercel destinations are deployed and publicly checked: shiftpay-business.vercel.app and shiftpay-employee.vercel.app, under lakshmikanth.27csb@licet.ac.in. The obsolete shiftpay-monad-payroll, employee-dashboard and business-dashboard projects have been removed after replacement checks passed.
 
 Render has two token-specific bridges and PostgreSQL schemas. Its administrator setting must use the actual Mera company address. The configuration passes the official schema validator. Free Render services do not guarantee continuous uptime. Cloud provisioning and healthy endpoints are still required.
 

@@ -9,7 +9,9 @@
     "dev": "next dev --hostname 127.0.0.1",
     "start": "next start --hostname 127.0.0.1",
     "test": "node --test mera.test.mjs funding.test.mjs wallet-access.test.mjs",
+    "pretest": "node prepare-public.cjs",
     "test:browser": "node redesign-browser-check.cjs",
+    "test:production": "node production-browser-check.cjs",
     "check": "npm test && npm run build",
     "build": "node prepare-public.cjs && next build",
     "predev": "node prepare-public.cjs"
