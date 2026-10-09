@@ -8,7 +8,7 @@ if(id!==10143)throw new Error('This preflight is restricted to Monad testnet 101
 const chain=defineChain({id,name:'Monad Testnet',nativeCurrency:{name:'MON',symbol:'MON',decimals:18},rpcUrls:{default:{http:[rpc]}}});
 const client=createPublicClient({chain,transport:http(rpc,{timeout:15000})});
 const missing:string[]=[];
-const keys:[string,string|undefined][]=[['deployer',process.env.DEPLOYER_PRIVATE_KEY],['attestor',process.env.ATTESTOR_PRIVATE_KEY],...(process.env.RELAYER_PRIVATE_KEYS || '').split(',').filter(Boolean).map((k,i):[string,string]=>['relayer '+i,k])];
+const keys:[string,string|undefined][]=[['attestor',process.env.ATTESTOR_PRIVATE_KEY],...(process.env.RELAYER_PRIVATE_KEYS || '').split(',').filter(Boolean).map((k,i):[string,string]=>['relayer '+i,k])];
 const publicDev=new Set(Array.from({length:10},(_,i)=>mnemonicToAccount('test test test test test test test test test test test junk',{addressIndex:i}).address.toLowerCase()));
 const actual=await client.getChainId();if(actual!==id)throw new Error('RPC chain mismatch');
 if(!isAddress(token)||!(await client.getCode({address:token})))throw new Error('No settlement token at the configured address');
@@ -22,6 +22,13 @@ for(const [asset,address] of Object.entries(known)){
   console.log('Verified testnet asset:',JSON.stringify({asset,address,decimals:actualDecimals}));
 }
 if(!(process.env.RELAYER_PRIVATE_KEYS || '').trim())missing.push('RELAYER_PRIVATE_KEYS');
+if(!isAddress(process.env.EXPECTED_EMPLOYER_ADMIN || ''))missing.push('EXPECTED_EMPLOYER_ADMIN (actual public Mera company address)');
+else{
+  const company=process.env.EXPECTED_EMPLOYER_ADMIN as Address;
+  if(publicDev.has(company.toLowerCase()))throw new Error('Public development accounts cannot be the company account');
+  if(await client.getBalance({address:company})===0n)missing.push('Company account needs test MON');
+  if(await client.readContract({address:token,abi:erc20Abi,functionName:'balanceOf',args:[company]})===0n)missing.push('Company account needs test '+symbol);
+}
 if(!isAddress(process.env.TAX_ADDRESS || ''))missing.push('TAX_ADDRESS');
 if(!(process.env.WEBHOOK_SECRET || '').trim() || process.env.WEBHOOK_SECRET!.length<32)missing.push('WEBHOOK_SECRET (32+ characters)');
 if(!(process.env.ADMIN_API_TOKEN || '').trim() || process.env.ADMIN_API_TOKEN!.length<32)missing.push('ADMIN_API_TOKEN (32+ characters)');
@@ -29,6 +36,6 @@ for(const [role,value] of keys){
   if(!value||!/^0x[0-9a-fA-F]{64}$/.test(value.trim())){missing.push(role+' private key');continue;}
   const account=privateKeyToAccount(value.trim() as Hex);if(publicDev.has(account.address.toLowerCase()))throw new Error('Public Anvil development accounts must never be used on testnet');
   if(process.env.ATTESTOR_ADDRESS&&role==='attestor'&&account.address.toLowerCase()!==process.env.ATTESTOR_ADDRESS.toLowerCase())throw new Error('Attestor address and key differ');
-  if(role==='deployer'||role.startsWith('relayer')){if(await client.getBalance({address:account.address})===0n)missing.push(role+' needs test MON');}
+  if(role.startsWith('relayer')){if(await client.getBalance({address:account.address})===0n)missing.push(role+' needs test MON');}
 }
-if(missing.length){console.log('Owner setup still needed:',missing.join(', '));process.exitCode=1;}else console.log('Preflight passed. Deploy with the contract script and record/verify the resulting address.');
+if(missing.length){console.log('Owner setup still needed:',missing.join(', '));process.exitCode=1;}else console.log('Preflight passed. Use the company passkey in the business portal and record the confirmed deployment receipts.');

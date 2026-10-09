@@ -28,3 +28,6 @@ mera.test.mjs
 
 remove-external-wallet.cjs
 wallet-access.test.mjs
+setup-funding.test.mjs
+selenium-test.py
+requirements-test.txt

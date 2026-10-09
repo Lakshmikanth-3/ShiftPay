@@ -3,7 +3,8 @@ import {useState,useRef,useEffect} from 'react';
 import {usePayroll} from './payroll.jsx';
 import PasskeyAccess from './passkey-access.jsx';
 import Link from 'next/link';
-import {createPublicClient,defineChain,http,isAddress,parseEventLogs,parseEther,zeroAddress} from 'viem';
+import {createPublicClient,defineChain,http,isAddress,parseEventLogs,parseEther,zeroAddress,encodeDeployData,encodeFunctionData} from 'viem';
+import {prepareSetupTransaction} from './setup-funding.mjs';
 import artifact from './deployment-artifact.json';
 import accounts from './deployment-accounts.json';
 import {metronomeVaultAbi as abi} from './vault-abi.mjs';
@@ -56,7 +57,8 @@ export default function Deployment(){
     if(!artifact.bytecode?.startsWith('0x'))throw new Error('Compiled deployment artifact missing');
     const token=testnetTokens[asset].address;
     const code=await client.getCode({address:token});if(!code||code==='0x')throw new Error('Settlement token contract unavailable');
-    const hash=await signer.deployContract({account:current,abi,bytecode:artifact.bytecode,args:[token]});
+    const request=await prepareSetupTransaction({client,signer,account:current,data:encodeDeployData({abi,bytecode:artifact.bytecode,args:[token]})});
+    const hash=await signer.deployContract({...request,abi,bytecode:artifact.bytecode,args:[token]});
     const value={chainId:10143,company,asset,token,attestor:accounts[asset].attestor,tax,pending:{kind:'deploy',hash}};
     save(value);setNotice('Vault deployment submitted: '+hash);await confirm(value);
   }
@@ -65,13 +67,15 @@ export default function Deployment(){
     const {wallet:signer,current}=await wallet();
     const token=await client.readContract({address:value.vault,abi,functionName:'token'});
     if(token.toLowerCase()!==value.token.toLowerCase())throw new Error('Vault token mismatch');
-    const hash=await signer.writeContract({account:current,address:value.vault,abi,functionName:'createEmployer',args:[value.attestor,value.tax]});
+    const request=await prepareSetupTransaction({client,signer,account:current,to:value.vault,data:encodeFunctionData({abi,functionName:'createEmployer',args:[value.attestor,value.tax]})});
+    const hash=await signer.writeContract({...request,address:value.vault,abi,functionName:'createEmployer',args:[value.attestor,value.tax]});
     const next={...value,pending:{kind:'register',hash}};save(next);setNotice('Company registration submitted: '+hash);await confirm(next);
   }
   async function fundGasStep(){
     const value=load(asset);if(!value?.employerId||value.pending)throw new Error('Complete company registration first');
     const {wallet:signer,current}=await wallet();
-    const hash=await signer.sendTransaction({account:current,to:accounts[asset].relayer,value:parseEther('0.05')});
+    const request=await prepareSetupTransaction({client,signer,account:current,to:accounts[asset].relayer,value:parseEther('0.05')});
+    const hash=await signer.sendTransaction(request);
     const next={...value,pending:{kind:'gas',hash}};save(next);setNotice('Backend gas funding submitted: '+hash);await confirm(next);
   }
   const complete=!!record?.employerId&&(!enablePayouts||!!record?.gasFundingHash);
