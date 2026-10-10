@@ -2,6 +2,12 @@
 
 Employer funded earned-wage access on Monad. The contract backs worker payouts and withholding with deposited tokens; work is attested by the employer bridge. Withdrawals are authorized by the registered payout wallet and submitted by employer-funded relayers.
 
+## Live
+
+Live: https://shiftpay-business.vercel.app (company website: `/deploy`, `/employer`) and https://shiftpay-employee.vercel.app (mobile employee wallet: `/employee`, `/employee/send`, `/employee/receive`, `/employee/cashout`, `/employee/history`, `/employee/profile`). The payroll bridge runs inside the business Vercel project at `/api/bridge/*` with Neon Postgres; the employee project relays bridge calls to it.
+
+USDC vault `0xA1C794EA48A1D86294848D28E85c76328070DB24` (employer ID 1) on Monad testnet. The AUSD vault is not deployed yet.
+
 ## Run
 
 Use Node 24, Docker Desktop, and Foundry (`forge`, `anvil`). On Windows add `%USERPROFILE%\.foundry\bin` to PATH.
@@ -18,7 +24,7 @@ Payroll writes use wallet signatures. The connected UI never uses sample balance
 
 Contracts: `forge test` in `contracts`.
 Bridge: `npm run typecheck` and `npm test` in `bridge`; full integration needs local Postgres and Foundry.
-App: `npm run check` in `app` runs wallet/funding tests and the production build. Run `npm run test:browser` with `TARGET_URL=http://127.0.0.1:3000` for browser regression.
+App: `npm run check` in `app` runs unit tests and the production build; `npm run test:live` checks the live deployments read-only. Run `npm run test:browser` with `TARGET_URL=http://127.0.0.1:3000` for browser regression.
 Benchmark: `npm run benchmark` in `bridge`; see [benchmark instructions](benchmark/README.md).
 
 ## Scope and trust

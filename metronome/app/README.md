@@ -1,6 +1,6 @@
-﻿# ShiftPay dashboards
+# ShiftPay dashboards
 
-Use Node 24. Run npm ci, configure public settings and server-only bridge URLs from .env.example, then npm run dev. Open http://localhost:3000. The two products are /employer and /employee. /deploy is company setup; former /demo and /preview routes return 404.
+Use Node 24. Run npm ci, configure settings from .env.example (PAYROLL_BACKEND=local runs the bundled bridge in-process; the employee project uses BRIDGE_ORIGIN and BRIDGE_RELAY_SECRET), then npm run dev. Open http://localhost:3000. The two products are /employer and /employee. /deploy is company setup; former /demo and /preview routes return 404.
 
 The original off-white, dark green and lime identity is retained. Both experiences read real payroll records and use their registered signing accounts. Runtime sample balances, simulation controls and external MetaMask connections are removed.
 
@@ -11,6 +11,7 @@ Company profiles, employee notes, allocations and settlement histories are handl
 ## Tests
 
 - npm test: prepare generated ABI, then wallet and funding unit tests.
+- npm run test:live: read-only live acceptance against both deployed sites and the USDC vault; set WORKER_ID to also compare one employee with on-chain state.
 - npm run check: unit suite plus production build.
 - npm run test:browser: localhost route, mobile and login checks; set TARGET_URL=http://127.0.0.1:3000.
 - npm run test:production: approved public portal checks.
@@ -18,4 +19,6 @@ Company profiles, employee notes, allocations and settlement histories are handl
 
 Browser runners use an isolated Chrome profile. On Linux, Chrome must be on PATH or supplied through CHROME_PATH. Reports live under root data and are excluded from Git.
 
-Current verified public URLs: https://shiftpay-business.vercel.app and https://shiftpay-employee.vercel.app. Real funded settlement remains pending backend/vault setup. See ../docs/SETUP.md and ../docs/PHASES.md.
+Live: https://shiftpay-business.vercel.app (company website: `/deploy`, `/employer`) and https://shiftpay-employee.vercel.app (mobile employee wallet: `/employee`, `/employee/send`, `/employee/receive`, `/employee/cashout`, `/employee/history`, `/employee/profile`). The payroll bridge runs inside the business Vercel project at `/api/bridge/*` with Neon Postgres; the employee project relays bridge calls to it.
+
+The employee wallet (wallet-app.jsx, agora.mjs) adds Agora AUSD: faucet request, person-to-person AUSD/USDC send, receive QR, and Agora Instant Settlement (AUSD -> CTK). See ../docs/SETUP.md and ../docs/PHASES.md.
