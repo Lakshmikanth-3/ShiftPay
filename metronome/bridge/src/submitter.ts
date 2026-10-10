@@ -41,6 +41,28 @@ export class Submitter {
     await Promise.allSettled([...this.watchers]);
   }
 
+  /**
+   * Serverless hosting has no resident loop: after each request, submit due work and wait for
+   * receipts until the queue is quiet or the time budget ends. Unfinished work resumes on the next request.
+   */
+  async settle(budgetMs: number) {
+    const end = Date.now() + budgetMs;
+    if (!this.recovered) {
+      await this.recover();
+      this.recovered = true;
+    }
+    while (Date.now() < end) {
+      await this.drain();
+      if (this.watchers.size === 0) {
+        const due = await this.ctx.prisma.chainTx.count({ where: { status: 'QUEUED', nextAttemptAt: { lte: new Date() } } });
+        if (due === 0) return;
+        continue;
+      }
+      await Promise.race([Promise.allSettled([...this.watchers]), new Promise((r) => setTimeout(r, Math.max(0, end - Date.now())))]);
+    }
+  }
+  private recovered = false;
+
   kick = () => {
     void this.drain().catch((err) => this.ctx.log.error({ err: String(err) }, 'submitter drain failed'));
   };
