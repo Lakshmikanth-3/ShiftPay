@@ -8,3 +8,5 @@ public/preview/
 vault-abi.mjs
 
 .vercel
+bridge-runtime/
+prisma/

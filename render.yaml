@@ -1,3 +1,4 @@
+# NO LONGER USED: the bridge runs on Vercel (business project /api/bridge) with Neon Postgres. Kept for history.
 # Real testnet backend; the frontend stays on Vercel.
 # Free plans are for the demo and do not provide 24/7 uptime.
 services:

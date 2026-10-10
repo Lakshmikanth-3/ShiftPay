@@ -31,3 +31,5 @@ wallet-access.test.mjs
 setup-funding.test.mjs
 selenium-test.py
 requirements-test.txt
+configure-vercel.cjs
+agora.test.mjs
