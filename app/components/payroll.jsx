@@ -16,7 +16,7 @@ async function bridgeApi(path, body,asset) {
   if(!response.ok) throw new Error(data.message || 'Payroll request failed');
   return data;
 }
-function errorText(error) { return error.shortMessage || error.message || 'Please try again.'; }
+function errorText(error) { const text=error.shortMessage || error.message || 'Please try again.'; return /RPC Request failed|rate limit|requests limited/i.test(text+(error.details||''))?'The Monad network is busy. Wait a few seconds and try again; nothing was submitted twice.':text; }
 function positiveAmount(value, decimals) {
   if(!/^\d+(\.\d+)?$/.test(value) || (value.split('.')[1]?.length || 0)>decimals) throw new Error('Enter a positive amount within the token precision.');
   const amount=parseUnits(value,decimals);if(amount<=0n)throw new Error('Amount must be positive.');return amount;
@@ -61,8 +61,8 @@ function Workspace({children}){
   async function configure(){
     const epoch=++configEpoch.current;
     try{
-      const config=await api('config'), health=await api('health');
-      if(config.chainId!==chain.id || await client.getChainId()!==chain.id)throw new Error('App RPC and payroll service chain IDs differ.');
+      const [config,health,rpcChain]=await Promise.all([api('config'),api('health'),client.getChainId()]);
+      if(config.chainId!==chain.id || rpcChain!==chain.id)throw new Error('App RPC and payroll service chain IDs differ.');
       if(!health.ok || !health.attestorRegistered)throw new Error('Payroll service failed its readiness check.');
       const token=await client.readContract({address:config.vault,abi,functionName:'token'});
       if(token.toLowerCase()!==config.token.toLowerCase())throw new Error('Settlement token configuration mismatch.');

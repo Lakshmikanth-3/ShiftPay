@@ -10,10 +10,17 @@ export async function fundingPlan({client,wallet,cfg,workerId,amount}){
   if(balance<amount)throw new Error('The company account needs more '+cfg.symbol+' before this allocation can be funded.');
   const funding={to:cfg.vault,abi,functionName:'fundWorkers',args:[BigInt(cfg.employerId),[BigInt(workerId)],[amount]]};
   if(allowance>=amount)return {mode:'fund',calls:[funding]};
+  const calls=[{to:cfg.token,abi:erc20Abi,functionName:'approve',args:[cfg.vault,amount]},funding];
+  // A local signer (Mera passkey) has no wallet capabilities endpoint; asking the public RPC fails.
+  if(wallet.account?.type==='local')return {mode:'approve-then-fund',calls};
   let capabilities;
   try{capabilities=await wallet.getCapabilities({chainId:cfg.chainId});}
-  catch(error){const code=error.code??error.cause?.code??error.cause?.cause?.code;if(code!==-32601&&code!==4200)throw error;return {mode:'approve-then-fund',calls:[{to:cfg.token,abi:erc20Abi,functionName:'approve',args:[cfg.vault,amount]},funding]};}
-  const calls=[{to:cfg.token,abi:erc20Abi,functionName:'approve',args:[cfg.vault,amount]},funding];
+  catch(error){
+    // Only a refusal by the account holder stops here; an unsupported method falls back to two transactions.
+    const code=error.code??error.cause?.code??error.cause?.cause?.code;
+    if(code===4001||/denied|rejected/i.test(error.message||''))throw error;
+    return {mode:'approve-then-fund',calls};
+  }
   // Only use an already-ready atomic account. Do not upgrade or delegate an EOA automatically.
   return {mode:capabilities?.atomic?.status==='ready'?'atomic':'approve-then-fund',calls};
 }

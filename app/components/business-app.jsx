@@ -2,7 +2,7 @@
 // Business payroll dashboard: one sign-in step, then a sidebar of payroll tasks backed by the vault and bridge.
 import React,{useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
-import {erc20Abi,formatUnits} from 'viem';
+import {erc20Abi,formatUnits,parseEther} from 'viem';
 import {usePayroll} from './payroll.jsx';
 import {PaymentLedger,ProfileEditor} from './business.jsx';
 import {testnetTokens} from '../lib/testnet-tokens.mjs';
@@ -97,6 +97,7 @@ function EmployeeDetail({w,onClose}){
     {!loaded?<p className="b-muted">Loading live payroll state…</p>:<div className="b-actions">
       <button className="b-primary" disabled={p.disabled||x.worker.flags!==1} onClick={()=>p.clock(on?'clock_out':'clock_in')}>{on?'End verified shift':'Start verified shift'}</button>
       <form className="b-inline" onSubmit={e=>{e.preventDefault();p.fund(amount)}}><input inputMode="decimal" placeholder={'Add '+p.asset} value={amount} onChange={e=>setAmount(e.target.value)} required/><button disabled={p.disabled}>Fund</button></form>
+      <button className="b-small ghost" disabled={p.busy||!!p.pending} onClick={()=>p.execute(async()=>{const w=await p.walletClient();const hash=await w.sendTransaction({to:x.worker.payoutAddr,value:parseEther('0.1')});if((await p.client.waitForTransactionReceipt({hash})).status!=='success')throw new Error('Fee transfer failed.');})}>Send 0.1 MON for fees</button>
       <button className="b-small ghost" disabled={p.disabled} onClick={()=>p.execute(()=>p.direct(x.worker.flags===1?'suspend':'reinstate',[BigInt(w.workerId)],x.worker.flags===1?'Suspend employee':'Reinstate employee'))}>{x.worker.flags===1?'Suspend':'Reinstate'}</button>
       <button className="b-small ghost" onClick={onClose}>Back</button></div>}
     {p.pending&&<p className="b-alert">{p.pending.label}: confirming on Monad…</p>}

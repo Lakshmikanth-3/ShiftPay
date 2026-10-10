@@ -13,3 +13,6 @@ test('rejected authorization never silently switches transaction paths',async()=
 test('batch submission is not presented as confirmed payment',async()=>{assert.equal(await confirmFundingBatch({cfg,pending:{bundleId:'batch'},client:{},wallet:{getCallsStatus:async()=>({chainId:10143,status:'pending'})}}),'SUBMITTED');});
 test('wrong-chain settlement is rejected',async()=>{await assert.rejects(confirmFundingBatch({cfg,pending:{bundleId:'batch'},client:{},wallet:{getCallsStatus:async()=>({chainId:1,status:'success',atomic:true,receipts:[]})}}),/different network/);});
 test('successful wallet status without receipts is not funding evidence',async()=>{await assert.rejects(confirmFundingBatch({cfg,pending:{bundleId:'batch'},client:{},wallet:{getCallsStatus:async()=>({chainId:10143,status:'success',atomic:true,receipts:[]})}}),/verifiable/);});
+
+test('passkey (local) signers skip the wallet capability request',async()=>{const f=fixture();const a=args(f);a.wallet={...a.wallet,account:{...a.wallet.account,type:'local'}};const p=await fundingPlan(a);assert.equal(p.mode,'approve-then-fund');assert.equal(f.queried(),false);});
+test('an RPC without wallet methods falls back to ordinary transactions',async()=>{assert.equal((await fundingPlan(args(fixture({error:Object.assign(new Error('RPC Request failed.'),{code:-32603})})))).mode,'approve-then-fund');});
