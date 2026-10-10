@@ -43,13 +43,13 @@ function useWallet(){
 
 function TxLink({hash,children='View on explorer'}){return hash?<a className="m-link" href={explorer(hash)} target="_blank" rel="noreferrer">{children} ↗</a>:null}
 function Feedback({w}){return <>{w.error&&<p className="m-alert error" role="alert">{w.error}</p>}{w.status&&!w.error&&<p className="m-alert" role="status">{w.status}</p>}</>}
-function GasNote({w}){if(!w.bal||w.bal.MON>=lowFee)return null;return <p className="m-alert warn">{w.p.owns?'Setting up your free network-fee credit from your employer…':'Fee credit is empty. It is added automatically once your employer registers you.'}</p>}
+function GasNote({w}){if(!w.bal||w.bal.MON>=lowFee)return null;return <p className="m-alert warn">Setting up your free network-fee credit…</p>}
 
 /** Employer-paid gas: a registered employee with an empty fee balance gets a small top-up from the payroll relayer. */
 function useSponsoredGas(w){
   const p=w.p,asked=useRef('');
-  useEffect(()=>{const key=p.selected+':'+w.account;if(!p.owns||!w.bal||w.bal.MON>=lowFee||asked.current===key)return;asked.current=key;
-    p.api('gas-grants',{workerId:p.selected}).then(r=>{if(r.granted){w.addActivity({type:'Fee credit from employer',amount:'+0.05',symbol:'MON',hash:r.hash});w.refresh();}}).catch(()=>{asked.current='';});
+  useEffect(()=>{const key=(p.owns?p.selected:'new')+':'+w.account;if(!w.account||!w.bal||w.bal.MON>=lowFee||asked.current===key)return;asked.current=key;
+    p.api('gas-grants',p.owns?{workerId:p.selected}:{address:w.account}).then(r=>{if(r.granted){w.addActivity({type:'Free fee credit',amount:'+'+(Number(r.amount)/1e18),symbol:'MON',hash:r.hash});w.refresh();}}).catch(()=>{asked.current='';});
   },[p.owns,p.selected,w.bal?.MON,w.account]);
 }
 

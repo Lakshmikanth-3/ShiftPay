@@ -130,9 +130,21 @@ export function dashboardRoutes(app:FastifyInstance,ctx:Ctx){
    */
   const grant=BigInt(process.env.GAS_GRANT_WEI||'50000000000000000'),floor=grant/5n;
   app.post('/gas-grants',async(req)=>{
-    const parsed=z.object({workerId:z.string().regex(/^[1-9]\d*$/)}).strict().safeParse(req.body);
+    const parsed=z.union([z.object({workerId:z.string().regex(/^[1-9]\d*$/)}).strict(),z.object({address:z.string().refine(isAddress)}).strict()]).safeParse(req.body);
     if(!parsed.success)throw new HttpError(400,'Invalid request.','bad_request');
     if(!ctx.transfer)throw new HttpError(503,'Gas sponsorship is unavailable.','no_sponsor');
+    if('address' in parsed.data){
+      // Onboarding grant: one small top-up per new address, capped per day across all addresses.
+      const address=parsed.data.address as `0x${string}`,key='new:'+address.toLowerCase(),small=grant/2n;
+      if(await ctx.chain.publicClient.getBalance({address})>=floor)return {granted:false,reason:'sufficient'};
+      if(await ctx.prisma.gasGrant.findFirst({where:{workerId:key}}))return {granted:false,reason:'already'};
+      const today=await ctx.prisma.gasGrant.count({where:{workerId:{startsWith:'new:'},at:{gt:new Date(Date.now()-24*3600_000)}}});
+      if(today>=Number(process.env.GAS_GRANT_DAILY||'40'))return {granted:false,reason:'daily_cap'};
+      const hash=await ctx.transfer(0,address,small);
+      await ctx.prisma.gasGrant.create({data:{workerId:key,address,amount:small.toString(),hash}});
+      await ctx.chain.publicClient.waitForTransactionReceipt({hash,timeout:30_000}).catch(()=>undefined);
+      return {granted:true,hash,amount:small.toString()};
+    }
     const workerId=parsed.data.workerId,w=await ctx.chain.readWorker(BigInt(workerId));
     if(w.employerId!==ctx.cfg.employerId||w.flags!==1)throw new HttpError(403,'Active registered employee required.','forbidden');
     const balance=await ctx.chain.publicClient.getBalance({address:w.payoutAddr});
