@@ -1,12 +1,13 @@
 'use client';
 import React, {useEffect, useState, useRef, createContext, useContext} from 'react';
 import {createPublicClient, createWalletClient, custom, defineChain, http, erc20Abi, parseUnits, parseEther, formatUnits, isAddress, toHex,keccak256,toBytes} from 'viem';
+import {monadTransport} from '../lib/rpc.mjs';
 import {metronomeVaultAbi as abi} from '../lib/vault-abi.mjs';
 import {testnetTokens} from '../lib/testnet-tokens.mjs';
 import {fundingPlan,confirmFundingBatch} from '../lib/funding.mjs';
 
 const chain = defineChain({id:10143,name:'Monad testnet',nativeCurrency:{name:'MON',symbol:'MON',decimals:18},rpcUrls:{default:{http:['https://testnet-rpc.monad.xyz/']}}});
-const client = createPublicClient({chain,transport:http()});
+const client = createPublicClient({chain,transport:monadTransport()});
 const clockTypes = {Clock:[{name:'workerId',type:'uint256'},{name:'action',type:'uint8'},{name:'nonce',type:'bytes32'},{name:'deadline',type:'uint64'}]};
 async function bridgeApi(path, body,asset) {
   const url=new URL('/api/bridge/'+path,window.location.origin);url.searchParams.set('asset',asset);
@@ -15,7 +16,8 @@ async function bridgeApi(path, body,asset) {
   if(!response.ok) throw new Error(data.message || 'Payroll request failed');
   return data;
 }
-function errorText(error) { const text=error.shortMessage || error.message || 'Please try again.'; return /RPC Request failed|rate limit|requests limited/i.test(text+(error.details||''))?'The Monad network is busy. Wait a few seconds and try again; nothing was submitted twice.':text; }
+const BUSY='The Monad network is busy. Wait a few seconds and try again; nothing was submitted twice.';
+function errorText(error) { const text=error.shortMessage || error.message || 'Please try again.'; return /RPC Request failed|rate limit|requests limited|internal error|Payroll service is unavailable|Failed to fetch/i.test(text+(error.details||''))?BUSY:text; }
 function positiveAmount(value, decimals) {
   if(!/^\d+(\.\d+)?$/.test(value) || (value.split('.')[1]?.length || 0)>decimals) throw new Error('Enter a positive amount within the token precision.');
   const amount=parseUnits(value,decimals);if(amount<=0n)throw new Error('Amount must be positive.');return amount;
@@ -81,7 +83,7 @@ function Workspace({children}){
       const [data,records]=await Promise.all([api(`workers/${id}`),api(`workers/${id}/shifts`)]);
       if(run!==generation.current || id!==selection.current)return;
       if(data.worker.employerId!==cfg.employerId)throw new Error('Worker belongs to a different employer.');
-      setWorker(data);setHistory(records.shifts);setFresh(true);
+      setWorker(data);setHistory(records.shifts);setFresh(true);setError(current=>current===BUSY?'':current);
     }catch(e){if(run===generation.current){setFresh(false);setError(errorText(e));}throw e;}
   }
   useEffect(()=>{
@@ -91,7 +93,7 @@ function Workspace({children}){
   },[]);
   useEffect(()=>{generation.current++;selection.current='';setCfg(null);setSelected('');setWorker(null);setHistory([]);setPending(null);setFresh(false);configure();},[asset]);
   useEffect(()=>{setHoldings(null);refreshHoldings();},[wallet?.address,authenticated]);
-  useEffect(()=>{if(!selected||!cfg)return;const timer=setInterval(async()=>{if(polling.current)return;polling.current=true;try{await refresh();}catch{}finally{polling.current=false;}},1000);return()=>clearInterval(timer);},[selected,cfg]);
+  useEffect(()=>{if(!selected||!cfg)return;const timer=setInterval(async()=>{if(polling.current)return;polling.current=true;try{await refresh();}catch{}finally{polling.current=false;}},2000);return()=>clearInterval(timer);},[selected,cfg]);
   useEffect(()=>{
     generation.current++;selection.current='';setSelected('');setWorker(null);setHistory([]);setPending(null);setFresh(false);
   },[wallet?.address,authenticated]);

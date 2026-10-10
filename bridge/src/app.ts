@@ -146,8 +146,18 @@ export function buildApp(ctx: Ctx): FastifyInstance {
 
   // ───────────── worker views ─────────────
 
+  // Many viewers poll the same worker; a short cache keeps chain reads under the public RPC rate limit.
+  const workerCache = new Map<string, { at: number; value: Promise<unknown> }>();
   app.get<{ Params: { workerId: string } }>('/workers/:workerId', async (req) => {
     const workerId = parse(uint, req.params.workerId);
+    const cached = workerCache.get(workerId.toString());
+    if (cached && Date.now() - cached.at < 1500) return cached.value;
+    const value = readWorkerView(workerId);
+    workerCache.set(workerId.toString(), { at: Date.now(), value });
+    value.catch(() => workerCache.delete(workerId.toString()));
+    return value;
+  });
+  async function readWorkerView(workerId: bigint) {
     const { chain } = ctx;
     const read = (functionName: 'claimable' | 'owedBack' | 'arrears' | 'allocationRunway' | 'reclaimable') =>
       chain.publicClient.readContract({ address: chain.vault, abi: metronomeVaultAbi, functionName, args: [workerId] });
@@ -173,7 +183,7 @@ export function buildApp(ctx: Ctx): FastifyInstance {
       openShift,
       readAt: ctx.now(),
     };
-  });
+  }
 
   /** Shift history with every signed attestation and its transaction, so a worker can verify each line. */
   app.get<{ Params: { workerId: string } }>('/workers/:workerId/shifts', async (req) => {

@@ -120,8 +120,9 @@ export function dashboardRoutes(app:FastifyInstance,ctx:Ctx){
     if(!isAddress(req.params.address))throw new HttpError(400,'Invalid address.','bad_request');
     await scan(4000).catch(()=>undefined);
     const ids=await roster(),address=req.params.address.toLowerCase(),matches:string[]=[];
-    for(const id of ids){const w=await ctx.chain.readWorker(BigInt(id));if(w.employerId===ctx.cfg.employerId&&w.flags!==0&&w.payoutAddr.toLowerCase()===address)matches.push(id);}
-    return {workerIds:matches};
+    // Active workers only, newest first: a suspended record never shadows a fresh registration.
+    for(const id of ids){const w=await ctx.chain.readWorker(BigInt(id));if(w.employerId===ctx.cfg.employerId&&w.flags===1&&w.payoutAddr.toLowerCase()===address)matches.push(id);}
+    return {workerIds:matches.sort((a,b)=>Number(BigInt(b)-BigInt(a)))};
   });
 
   /**

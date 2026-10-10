@@ -5,6 +5,7 @@ import {entropyToMnemonic,mnemonicToSeedSync} from '@scure/bip39';
 import {wordlist} from '@scure/bip39/wordlists/english.js';
 import {createWalletClient,http,isAddress} from 'viem';
 import {monadTestnet} from 'viem/chains';
+import {monadTransport} from './rpc.mjs';
 
 export const meraStorageKey=host=>'shiftpay:mera:v1:'+host;
 export function derivePayrollSession(prfOutput){
@@ -39,7 +40,7 @@ export async function openPayrollPasskey({create=false,name}){
     const metadata={version:1,rpId:host,address:account.address,credentialId:output.credentialId,
       ...(output.transports?{transports:output.transports}:stored?.transports?{transports:stored.transports}:{})};
     localStorage.setItem(meraStorageKey(host),JSON.stringify(metadata));
-    const base=createWalletClient({account,chain:monadTestnet,transport:http('https://testnet-rpc.monad.xyz/')});
+    const base=createWalletClient({account,chain:monadTestnet,transport:monadTransport()});
     // Contract simulations contain JSON-RPC account addresses. Retain the local
     // Mera signer when passing those requests to viem; never send unsigned writes.
     const client={...base,

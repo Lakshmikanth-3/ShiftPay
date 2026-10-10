@@ -87,7 +87,7 @@ function AddEmployee({onDone}){
 }
 
 function EmployeeDetail({w,onClose}){
-  const p=usePayroll(),[amount,setAmount]=useState('');
+  const p=usePayroll(),[amount,setAmount]=useState(''),[feeHash,setFeeHash]=useState('');
   const loaded=p.worker&&p.selected===w.workerId;
   const x=loaded?{...w,worker:p.worker.worker,claimable:p.worker.claimable,earned:p.worker.earned,runwaySeconds:p.worker.runwaySeconds}:w;
   const [label,tone]=status(x),on=x.worker.clockInAt!=='0';
@@ -97,9 +97,10 @@ function EmployeeDetail({w,onClose}){
     {!loaded?<p className="b-muted">Loading live payroll state…</p>:<div className="b-actions">
       <button className="b-primary" disabled={p.disabled||x.worker.flags!==1} onClick={()=>p.clock(on?'clock_out':'clock_in')}>{on?'End verified shift':'Start verified shift'}</button>
       <form className="b-inline" onSubmit={e=>{e.preventDefault();p.fund(amount)}}><input inputMode="decimal" placeholder={'Add '+p.asset} value={amount} onChange={e=>setAmount(e.target.value)} required/><button disabled={p.disabled}>Fund</button></form>
-      <button className="b-small ghost" disabled={p.busy||!!p.pending} onClick={()=>p.execute(async()=>{const w=await p.walletClient();const hash=await w.sendTransaction({to:x.worker.payoutAddr,value:parseEther('0.1')});if((await p.client.waitForTransactionReceipt({hash})).status!=='success')throw new Error('Fee transfer failed.');})}>Send 0.1 MON for fees</button>
+      <button className="b-small ghost" disabled={p.busy||!!p.pending} onClick={()=>p.execute(async()=>{const w=await p.walletClient();setFeeHash('');const hash=await w.sendTransaction({to:x.worker.payoutAddr,value:parseEther('0.1')});if((await p.client.waitForTransactionReceipt({hash})).status!=='success')throw new Error('Fee transfer failed.');setFeeHash(hash);})}>{p.busy?'Working…':'Send 0.1 MON for fees'}</button>
       <button className="b-small ghost" disabled={p.disabled} onClick={()=>p.execute(()=>p.direct(x.worker.flags===1?'suspend':'reinstate',[BigInt(w.workerId)],x.worker.flags===1?'Suspend employee':'Reinstate employee'))}>{x.worker.flags===1?'Suspend':'Reinstate'}</button>
       <button className="b-small ghost" onClick={onClose}>Back</button></div>}
+    {feeHash&&<p className="b-alert">Sent 0.1 MON fee credit to the employee · <a href={'https://testnet.monadexplorer.com/tx/'+feeHash} target="_blank" rel="noreferrer">view transaction</a></p>}
     {p.pending&&<p className="b-alert">{p.pending.label}: confirming on Monad…</p>}
   </section>;
 }

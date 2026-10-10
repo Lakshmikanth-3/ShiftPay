@@ -4,6 +4,7 @@ import {usePayroll} from './payroll.jsx';
 import PasskeyAccess from './passkey-access.jsx';
 import Link from 'next/link';
 import {createPublicClient,defineChain,http,isAddress,parseEventLogs,parseEther,zeroAddress,encodeDeployData,encodeFunctionData} from 'viem';
+import {monadTransport} from '../lib/rpc.mjs';
 import {prepareSetupTransaction} from '../lib/setup-funding.mjs';
 import {readMeraMetadata} from '../lib/mera.mjs';
 import {loadSetupRecord} from '../lib/deployment-store.mjs';
@@ -15,7 +16,7 @@ import {requestAusd} from '../lib/agora.mjs';
 
 const confirmedTaxRecipient='0x4e3f8497F732326CFB8cC4d17Ad0688b74582776';
 const chain=defineChain({id:10143,name:'Monad Testnet',nativeCurrency:{name:'MON',symbol:'MON',decimals:18},rpcUrls:{default:{http:['https://testnet-rpc.monad.xyz/']}}});
-const client=createPublicClient({chain,transport:http()});
+const client=createPublicClient({chain,transport:monadTransport()});
 export default function Deployment(){
   const payroll=usePayroll();
   const [savedCompany,setSavedCompany]=useState('');

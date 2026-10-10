@@ -2,6 +2,7 @@ import {
   createPublicClient,
   createWalletClient,
   defineChain,
+  fallback,
   http,
   type Address,
   type PublicClient,
@@ -52,7 +53,10 @@ export function makeChain(cfg: Pick<Config, 'rpcUrl' | 'chainId' | 'vault' | 're
     nativeCurrency: { name: 'MON', symbol: 'MON', decimals: 18 },
     rpcUrls: { default: { http: [cfg.rpcUrl] } },
   });
-  const transport = http(cfg.rpcUrl);
+  // The public Monad RPC allows 25 requests/second; fall back to other public providers before failing a request.
+  const extra = cfg.chainId === 10143 ? ['https://rpc-testnet.monadinfra.com', 'https://rpc.ankr.com/monad_testnet', 'https://monad-testnet.drpc.org'] : [];
+  const urls = [cfg.rpcUrl, ...(process.env.MONAD_RPC_FALLBACKS?.split(',').map((u) => u.trim()).filter(Boolean) ?? extra)];
+  const transport = urls.length > 1 ? fallback(urls.map((u) => http(u, { retryCount: 1, timeout: 10_000 })), { retryCount: 2 }) : http(cfg.rpcUrl);
   const publicClient = createPublicClient({ chain, transport });
   const relayers = cfg.relayerKeys.map((key) =>
     createWalletClient({ account: privateKeyToAccount(key), chain, transport }),
