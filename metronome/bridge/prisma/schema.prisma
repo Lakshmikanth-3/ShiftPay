@@ -2,6 +2,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -119,4 +120,27 @@ model ChainTx {
 
   @@index([status, nextAttemptAt])
   @@index([workerId])
+}
+
+/// Persisted vault log scan position, so serverless instances resume instead of rescanning from deployment.
+model IndexCursor {
+  id        String  @id
+  nextBlock BigInt
+  blockHash String?
+}
+
+/// Indexed vault events used for the workforce roster and settlement history.
+model VaultEvent {
+  id          String  @id
+  blockNumber BigInt
+  logIndex    Int
+  eventName   String
+  workerId    String?
+  employerId  String?
+  amount      String?
+  hash        String
+
+  @@index([eventName, employerId])
+  @@index([workerId])
+  @@index([blockNumber])
 }

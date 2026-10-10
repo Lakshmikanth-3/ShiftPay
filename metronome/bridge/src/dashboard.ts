@@ -11,40 +11,75 @@ const requestSchema=z.object({address:z.string().refine(isAddress),workerId:z.st
 export function payloadHash(data:unknown){return keccak256(toBytes(JSON.stringify(data)));}
 const wait=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 export function dashboardRoutes(app:FastifyInstance,ctx:Ctx){
-  let next:bigint=ctx.cfg.vaultDeployBlock??0n, scanLock=false, indexedHash:Hex|undefined;
-  const events=new Map<string,any>(),ids=new Set<string>();
-  let snapshot:any=null,snapshotAt=0,snapshotLock:Promise<any>|null=null,heldTax=0n;
-  async function scan(){
+  let scanLock:Promise<any>|null=null;
+  let snapshot:any=null,snapshotAt=0,snapshotKey='',snapshotLock:Promise<any>|null=null,heldTax=0n;
+  const cursorId=ctx.chain.vault.toLowerCase()+':'+ctx.cfg.employerId.toString();
+  const tracked=['WorkerCreated','Withdrawn','TaxEscrowed','Funded'];
+  async function rows(logs:any[]){
+    const {parseEventLogs}=await import('viem');
+    return parseEventLogs({abi,logs,strict:true}).filter((log:any)=>log.transactionHash&&log.logIndex!==null&&tracked.includes(log.eventName)).map((log:any)=>({
+      id:log.transactionHash+':'+log.logIndex,blockNumber:log.blockNumber,logIndex:log.logIndex,eventName:log.eventName,
+      workerId:log.args.workerId?.toString()??null,employerId:log.args.employerId?.toString()??null,
+      amount:(log.args.amount??log.args.delta)?.toString()??null,hash:log.transactionHash}));
+  }
+  /**
+   * Indexes vault logs into Postgres. Monad RPC limits eth_getLogs to 100 blocks, so ranges are fetched in
+   * parallel within a time budget; the cursor persists so every serverless instance resumes where the last stopped.
+   */
+  async function scan(budgetMs=8000){
     if(ctx.cfg.vaultDeployBlock===undefined)throw new HttpError(503,'Configure VAULT_DEPLOY_BLOCK from the confirmed deployment receipt to index the workforce.','index_not_configured');
-    if(scanLock)return {complete:false};scanLock=true;
-    try{
+    if(scanLock)return scanLock;
+    scanLock=(async()=>{
+      const end=Date.now()+budgetMs;
+      let cursor=await ctx.prisma.indexCursor.findUnique({where:{id:cursorId}})??{id:cursorId,nextBlock:ctx.cfg.vaultDeployBlock!,blockHash:null};
       const head=await ctx.chain.publicClient.getBlockNumber();const target=head-BigInt(ctx.cfg.confirmations-1);
-      if(indexedHash&&next>ctx.cfg.vaultDeployBlock!){const last=await ctx.chain.publicClient.getBlock({blockNumber:next-1n});if(last.hash!==indexedHash){next=ctx.cfg.vaultDeployBlock;events.clear();ids.clear();snapshot=null;}}
-      let loops=0;
-      while(next<=target&&loops++<8){
-        const end=next+99n>target?target:next+99n;
-        let scannedNext=end+1n;
-        let logs;
+      if(cursor.blockHash&&cursor.nextBlock>ctx.cfg.vaultDeployBlock!){
+        const last=await ctx.chain.publicClient.getBlock({blockNumber:cursor.nextBlock-1n});
+        if(last.hash!==cursor.blockHash){
+          // Reorg: drop recent events and rescan a safe window.
+          const from=cursor.nextBlock-500n>ctx.cfg.vaultDeployBlock!?cursor.nextBlock-500n:ctx.cfg.vaultDeployBlock!;
+          await ctx.prisma.vaultEvent.deleteMany({where:{blockNumber:{gte:from}}});
+          cursor={...cursor,nextBlock:from,blockHash:null};
+        }
+      }
+      let next=cursor.nextBlock;
+      while(next<=target&&Date.now()<end){
+        let scannedNext:bigint,logs:any[]=[];
         if(ctx.cfg.eventSource==='envio'){
-          const result=await queryPayrollEvents({chainId:ctx.cfg.chainId,token:ctx.cfg.envioToken??'',vault:ctx.chain.vault,fromBlock:next,toBlock:end});
+          const to=next+9999n>target?target:next+9999n;
+          const result=await queryPayrollEvents({chainId:ctx.cfg.chainId,token:ctx.cfg.envioToken??'',vault:ctx.chain.vault,fromBlock:next,toBlock:to});
+          if(result.nextBlock===next)break; // Indexer is behind; never invent progress.
+          for(const log of result.logs){const canonical=await ctx.chain.publicClient.getBlock({blockNumber:log.blockNumber!});if(canonical.hash!==log.blockHash)throw new HttpError(503,'Payroll events are awaiting canonical chain confirmation.','envio_reorg');}
           logs=result.logs;scannedNext=result.nextBlock;
-          if(scannedNext===next)break; // Indexer is behind; never invent progress.
-          const blocks=new Map<string,Hex>();
-          for(const log of logs){const number=log.blockNumber!.toString(),hash=log.blockHash!;
-            if(blocks.has(number)&&blocks.get(number)!==hash)throw new HttpError(503,'Payroll indexer returned conflicting block hashes.','envio_reorg');
-            blocks.set(number,hash);
-          }
-          for(const [number,hash] of blocks){
-            const canonical=await ctx.chain.publicClient.getBlock({blockNumber:BigInt(number)});
-            if(canonical.hash!==hash)throw new HttpError(503,'Payroll events are awaiting canonical chain confirmation.','envio_reorg');
-          }
-        }else logs=await ctx.chain.publicClient.getLogs({address:ctx.chain.vault,fromBlock:next,toBlock:end});
-        const {parseEventLogs}=await import('viem');
-        for(const log of parseEventLogs({abi,logs,strict:true})){if(!log.transactionHash||log.logIndex===null)continue;events.set(log.transactionHash+':'+log.logIndex,log);if(log.eventName==='WorkerCreated'&&log.args.employerId===ctx.cfg.employerId)ids.add(log.args.workerId.toString());}
-        indexedHash=(await ctx.chain.publicClient.getBlock({blockNumber:scannedNext-1n})).hash!;next=scannedNext;await wait(60);
+        }else{
+          // The public Monad RPC allows 25 requests/second; keep each paced batch well below that.
+          const ranges:[bigint,bigint][]=[],started=Date.now();
+          for(let from=next;from<=target&&ranges.length<8;from+=100n)ranges.push([from,from+99n>target?target:from+99n]);
+          let results;
+          try{results=await Promise.all(ranges.map(([fromBlock,toBlock])=>ctx.chain.publicClient.getLogs({address:ctx.chain.vault,fromBlock,toBlock})));}
+          catch(err){ctx.log.warn({err:String(err).slice(0,200)},'vault log scan paused');break;}
+          logs=results.flat();scannedNext=ranges[ranges.length-1][1]+1n;
+          await wait(Math.max(0,700-(Date.now()-started)));
+        }
+        const data=await rows(logs);
+        const blockHash=(await ctx.chain.publicClient.getBlock({blockNumber:scannedNext-1n})).hash!;
+        await ctx.prisma.$transaction([
+          ctx.prisma.vaultEvent.createMany({data,skipDuplicates:true}),
+          ctx.prisma.indexCursor.upsert({where:{id:cursorId},create:{id:cursorId,nextBlock:scannedNext,blockHash},update:{nextBlock:scannedNext,blockHash}}),
+        ]);
+        next=scannedNext;
       }
       return {complete:next>target,indexedBlock:next-1n,targetBlock:target};
-    }finally{scanLock=false;}
+    })().finally(()=>{scanLock=null;});
+    return scanLock;
+  }
+  /** Workers created for this employer on chain, plus registered profiles (each verified on chain before display). */
+  async function roster(){
+    const [created,profiles]=await Promise.all([
+      ctx.prisma.vaultEvent.findMany({where:{eventName:'WorkerCreated',employerId:ctx.cfg.employerId.toString()},select:{workerId:true}}),
+      ctx.prisma.workerProfile.findMany({select:{workerId:true}}),
+    ]);
+    return [...new Set([...created.map(r=>r.workerId!),...profiles.map(r=>r.workerId)])].sort((a,b)=>Number(BigInt(a)-BigInt(b)));
   }
   async function readSnapshots(workerIds:string[]){
     const block=await ctx.chain.publicClient.getBlock();
@@ -67,14 +102,17 @@ export function dashboardRoutes(app:FastifyInstance,ctx:Ctx){
     if(body.data.employee){const worker=await ctx.chain.readWorker(BigInt(body.data.employee.workerId));if(worker.flags===0||worker.employerId!==ctx.cfg.employerId)throw new HttpError(403,'Register the employee on chain before saving HR details.','wrong_employer');}
     if(Object.keys(body.data).length){const signatureHash=keccak256(body.signature.toLowerCase() as Hex);await ctx.prisma.$transaction(async tx=>{const consumed=await tx.consumedAuthorization.findUnique({where:{id:signatureHash}});if(consumed)return;await tx.consumedAuthorization.create({data:{id:signatureHash,deadline}});if(body.data.companyName)await tx.companyProfile.upsert({where:{id:ctx.cfg.employerId.toString()},create:{id:ctx.cfg.employerId.toString(),name:body.data.companyName},update:{name:body.data.companyName}});if(body.data.employee){const profile=body.data.employee;await tx.workerProfile.upsert({where:{workerId:profile.workerId},create:profile,update:profile});}});}
     const progress=await scan();
-    if(progress.complete&&(!snapshot||Date.now()-snapshotAt>5000)){
-      if(!snapshotLock)snapshotLock=readSnapshots([...ids]).then(async value=>{const blockNumber=value[0]?.blockNumber??await ctx.chain.publicClient.getBlockNumber();const contracts=Array.from({length:64},(_,shard)=>({address:ctx.chain.vault,abi,functionName:'withheld' as const,args:[ctx.cfg.employerId,BigInt(shard)] as const}));let amounts:readonly bigint[];if(ctx.cfg.chainId===10143)amounts=await ctx.chain.publicClient.multicall({contracts,allowFailure:false,multicallAddress:monadTestnet.contracts.multicall3.address,blockNumber});else amounts=await Promise.all(contracts.map(call=>ctx.chain.publicClient.readContract({...call,blockNumber})));heldTax=amounts.reduce((sum,amount)=>sum+amount,0n);snapshot=value;snapshotAt=Date.now();return value;}).finally(()=>{snapshotLock=null;});
+    const ids=await roster(),key=ids.join(',');
+    if(!snapshot||snapshotKey!==key||Date.now()-snapshotAt>5000){
+      if(!snapshotLock)snapshotLock=readSnapshots(ids).then(async value=>{const blockNumber=value[0]?.blockNumber??await ctx.chain.publicClient.getBlockNumber();const contracts=Array.from({length:64},(_,shard)=>({address:ctx.chain.vault,abi,functionName:'withheld' as const,args:[ctx.cfg.employerId,BigInt(shard)] as const}));let amounts:readonly bigint[];if(ctx.cfg.chainId===10143)amounts=await ctx.chain.publicClient.multicall({contracts,allowFailure:false,multicallAddress:monadTestnet.contracts.multicall3.address,blockNumber});else amounts=await Promise.all(contracts.map(call=>ctx.chain.publicClient.readContract({...call,blockNumber})));heldTax=amounts.reduce((sum,amount)=>sum+amount,0n);snapshot=value.filter((w:any)=>w.worker.employerId===ctx.cfg.employerId&&w.worker.flags!==0);snapshotKey=key;snapshotAt=Date.now();return snapshot;}).finally(()=>{snapshotLock=null;});
       await snapshotLock;
     }
     const workers=(snapshot||[]).filter((w:any)=>admin||w.workerId===body.workerId);
-    const profiles=await ctx.prisma.workerProfile.findMany({where:{workerId:{in:workers.map((w:any)=>w.workerId)}}});
+    const visible=new Set(workers.map((w:any)=>w.workerId));
+    const profiles=await ctx.prisma.workerProfile.findMany({where:{workerId:{in:[...visible] as string[]}}});
     const company=await ctx.prisma.companyProfile.findUnique({where:{id:ctx.cfg.employerId.toString()}});
-    const payments=[...events.values()].filter(log=>['Withdrawn','TaxEscrowed','Funded'].includes(log.eventName)&&ids.has(log.args.workerId?.toString())&&(admin||log.args.workerId.toString()===body.workerId)).sort((a,b)=>Number(b.blockNumber-a.blockNumber)||b.logIndex-a.logIndex).map(log=>({id:log.transactionHash+':'+log.logIndex,workerId:log.args.workerId.toString(),type:log.eventName,amount:log.args.amount??log.args.delta,hash:log.transactionHash,blockNumber:log.blockNumber,status:'CONFIRMED'}));
+    const events=await ctx.prisma.vaultEvent.findMany({where:{eventName:{in:['Withdrawn','TaxEscrowed','Funded']},workerId:{in:[...visible] as string[]}},orderBy:[{blockNumber:'desc'},{logIndex:'desc'}],take:500});
+    const payments=events.map(e=>({id:e.id,workerId:e.workerId,type:e.eventName,amount:e.amount,hash:e.hash,blockNumber:e.blockNumber,status:'CONFIRMED'}));
     return {company,workers:workers.map((w:any)=>({...w,profile:profiles.find(p=>p.workerId===w.workerId)||null})),payments,progress,heldTax:admin?heldTax:undefined,readAt:workers[0]?.readAt??null};
   });
 }
