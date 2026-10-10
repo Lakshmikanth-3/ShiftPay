@@ -6,6 +6,7 @@ import {formatUnits} from 'viem';
 import {usePayroll} from './payroll.jsx';
 import PasskeyAccess from './passkey-access.jsx';
 import {testnetTokens} from '../lib/testnet-tokens.mjs';
+import {pitchUrl} from '../lib/pitch.mjs';
 import {agora,balances,instantSettle,parseAmount,quoteSettlement,requestAusd,sendToken} from '../lib/agora.mjs';
 
 const tabs=[['','Home','⌂'],['send','Send','↗'],['cashout','Cash out','⇄'],['history','History','☰'],['profile','Profile','◉']];
@@ -160,7 +161,7 @@ export default function WalletApp({section=''}){
   const signedIn=p.authenticated&&p.wallet;
   const screen={send:Send,receive:Receive,cashout:CashOut,history:History,profile:Profile}[section]||Home;
   return <div className="m-shell"><div className="m-phone">
-    <header className="m-top"><span className="m-logo small">S</span><b>ShiftPay</b><span className="m-net">Monad testnet</span></header>
+    <header className="m-top"><span className="m-logo small">S</span><b>ShiftPay</b><a className="m-pitch" href={pitchUrl} target="_blank" rel="noreferrer">▶ Pitch</a><span className="m-net">Testnet</span></header>
     <main className="m-main">{!signedIn?<Login/>:React.createElement(screen,{w})}
       {p.error&&signedIn&&!p.error.includes('pending')&&<p className="m-alert error">{p.error}</p>}
       {p.notice&&signedIn&&<p className="m-alert">{p.notice}</p>}</main>

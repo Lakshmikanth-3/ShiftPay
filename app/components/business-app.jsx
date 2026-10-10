@@ -7,6 +7,9 @@ import {usePayroll} from './payroll.jsx';
 import {PaymentLedger,ProfileEditor} from './business.jsx';
 import {testnetTokens} from '../lib/testnet-tokens.mjs';
 import {requestAusd} from '../lib/agora.mjs';
+import {pitchUrl} from '../lib/pitch.mjs';
+
+function PitchLink({className='b-pitch'}){return <a className={className} href={pitchUrl} target="_blank" rel="noreferrer">▶ Pitch</a>}
 
 const nav=[['','Overview','◧'],['employees','Employees','☺'],['shifts','Shifts','◷'],['funding','Funding','◈'],['payments','Payments','☰'],['settings','Settings','⚙']];
 const short=a=>a?a.slice(0,6)+'…'+a.slice(-4):'';
@@ -16,13 +19,14 @@ const name=w=>w.profile?.name||'Employee '+w.workerId;
 
 function SignIn(){
   const p=usePayroll();
-  return <div className="b-signin"><div className="b-signin-card">
+  return <div className="b-signin"><PitchLink className="b-pitch floating"/><div className="b-signin-card">
     <div className="b-logo">S</div><h1>ShiftPay for Business</h1>
     <p>Fund payroll, verify shifts and pay employees as they earn on Monad.</p>
     <button className="b-primary wide" disabled={p.busy} onClick={()=>p.startMera(false)}>{p.busy?'Waiting for passkey…':'Unlock company passkey'}</button>
     {p.error&&<p className="b-alert error">{p.error}</p>}
     <p className="b-muted">New company? <Link href="/deploy">Create a company passkey and payroll</Link></p>
     <p className="b-fine">Secured by a Mera passkey bound to this site. No wallet extension or seed phrase.</p>
+    <details className="b-how"><summary>What happens when I unlock?</summary><ol><li>Your device asks for your fingerprint, face or PIN.</li><li>The passkey returns a secret only this site can request, and the browser turns it into your company signing key. The key never leaves this tab and is wiped after 15 minutes.</li><li>ShiftPay checks on Monad that this account is the registered payroll administrator, then loads your verified payroll.</li></ol></details>
   </div></div>;
 }
 
@@ -136,7 +140,7 @@ export default function BusinessApp({section=''}){
   return <div className="b-shell">
     <aside className="b-side"><Link className="b-brand" href="/employer"><span className="b-logo small">S</span>ShiftPay</Link>
       <nav aria-label="Business navigation">{nav.map(([k,l,i])=><Link key={k} href={'/employer'+(k?'/'+k:'')} aria-current={section===k?'page':undefined}><i>{i}</i>{l}</Link>)}</nav>
-      <div className="b-account"><span>Company account</span><b className="mono">{short(p.wallet.address)}</b><button className="b-small ghost" onClick={()=>p.logout().catch(()=>{})}>Sign out</button></div></aside>
+      <PitchLink/><div className="b-account"><span>Company account</span><b className="mono">{short(p.wallet.address)}</b><button className="b-small ghost" onClick={()=>p.logout().catch(()=>{})}>Sign out</button></div></aside>
     <main className="b-main"><header className="b-top"><div><p className="b-eyebrow">{p.dashboard?.company?.name||'Business payroll'}</p><h1>{title}</h1></div>
       <label className="b-currency">Currency<select value={p.asset} disabled={p.busy||!!p.pending} onChange={e=>{requested.current='';p.setAsset(e.target.value)}}><option>USDC</option><option>AUSD</option></select></label></header>
       {p.error&&p.cfg&&<p className="b-alert error">{p.error}</p>}{p.notice&&<p className="b-alert mono">{p.notice}</p>}
