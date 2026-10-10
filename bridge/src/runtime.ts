@@ -57,6 +57,7 @@ export async function createRuntime(env: NodeJS.ProcessEnv = process.env) {
   const ctx: Ctx = { cfg, prisma, chain, attestor, now: wallClock, kick: () => {}, log };
   const submitter = new Submitter(ctx);
   ctx.kick = submitter.kick;
+  ctx.transfer = submitter.transfer;
   const app = buildApp(ctx);
   return { cfg, ctx, chainId, prisma, submitter, app, asset };
 }

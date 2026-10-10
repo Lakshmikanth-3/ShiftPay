@@ -281,6 +281,16 @@ export class Submitter {
 
   /** Serialised per relayer so locally tracked nonces stay contiguous. */
   private async send(relayer: Relayer, request: object): Promise<Hash> {
+    return this.withNonce(relayer, (nonce) => relayer.writeContract({ ...(request as Record<string, unknown>), nonce } as never));
+  }
+
+  /** Native MON transfer from a relayer, sharing the payroll nonce sequence so it never collides with queued work. */
+  transfer = async (shard: number, to: Address, value: bigint): Promise<Hash> => {
+    const relayer = this.ctx.chain.relayerForShard(shard);
+    return this.withNonce(relayer, (nonce) => relayer.sendTransaction({ to, value, nonce } as never));
+  };
+
+  private async withNonce(relayer: Relayer, submit: (nonce: number) => Promise<Hash>): Promise<Hash> {
     const address = relayer.account.address;
     const previous = this.sendLocks.get(address) ?? Promise.resolve();
     let release!: () => void;
@@ -292,7 +302,7 @@ export class Submitter {
       if (nonce === undefined) {
         nonce = await this.ctx.chain.publicClient.getTransactionCount({ address, blockTag: 'pending' });
       }
-      const hash = await relayer.writeContract({ ...(request as Record<string, unknown>), nonce } as never);
+      const hash = await submit(nonce);
       this.nonces.set(address, nonce + 1);
       return hash;
     } catch (err) {

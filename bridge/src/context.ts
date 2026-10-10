@@ -12,6 +12,8 @@ export type Ctx = {
   now: () => bigint;
   /** Wakes the submitter after new work is queued. */
   kick: () => void;
+  /** Sends native MON from the shard's relayer (gas sponsorship). Set once the submitter exists. */
+  transfer?: (shard: number, to: `0x${string}`, value: bigint) => Promise<`0x${string}`>;
   log: { info: (o: object, msg?: string) => void; warn: (o: object, msg?: string) => void; error: (o: object, msg?: string) => void };
 };
 

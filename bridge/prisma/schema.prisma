@@ -144,3 +144,23 @@ model VaultEvent {
   @@index([workerId])
   @@index([blockNumber])
 }
+
+/// Network-fee top-ups sent by the employer's relayer to registered employees.
+model GasGrant {
+  id       String   @id @default(cuid())
+  workerId String
+  address  String
+  amount   String
+  hash     String
+  at       DateTime @default(now())
+
+  @@index([workerId, at])
+}
+
+/// Passkey-encrypted employee records. The server stores ciphertext only, under an id derived from the passkey.
+model PrivateVault {
+  id         String   @id
+  nonce      String
+  ciphertext String
+  updatedAt  DateTime @updatedAt
+}

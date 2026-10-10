@@ -115,4 +115,52 @@ export function dashboardRoutes(app:FastifyInstance,ctx:Ctx){
     const payments=events.map(e=>({id:e.id,workerId:e.workerId,type:e.eventName,amount:e.amount,hash:e.hash,blockNumber:e.blockNumber,status:'CONFIRMED'}));
     return {company,workers:workers.map((w:any)=>({...w,profile:profiles.find(p=>p.workerId===w.workerId)||null})),payments,progress,heldTax:admin?heldTax:undefined,readAt:workers[0]?.readAt??null};
   });
+  /** Stateless recovery: the employee app finds its payroll from the passkey address alone. */
+  app.get<{Params:{address:string}}>('/workers/by-address/:address',async(req)=>{
+    if(!isAddress(req.params.address))throw new HttpError(400,'Invalid address.','bad_request');
+    await scan(4000).catch(()=>undefined);
+    const ids=await roster(),address=req.params.address.toLowerCase(),matches:string[]=[];
+    for(const id of ids){const w=await ctx.chain.readWorker(BigInt(id));if(w.employerId===ctx.cfg.employerId&&w.flags!==0&&w.payoutAddr.toLowerCase()===address)matches.push(id);}
+    return {workerIds:matches};
+  });
+
+  /**
+   * Gas sponsorship: the employer's relayer tops up a registered employee's network-fee balance so a new
+   * passkey account can send and settle immediately. Bounded per worker per day and only when nearly empty.
+   */
+  const grant=BigInt(process.env.GAS_GRANT_WEI||'50000000000000000'),floor=grant/5n;
+  app.post('/gas-grants',async(req)=>{
+    const parsed=z.object({workerId:z.string().regex(/^[1-9]\d*$/)}).strict().safeParse(req.body);
+    if(!parsed.success)throw new HttpError(400,'Invalid request.','bad_request');
+    if(!ctx.transfer)throw new HttpError(503,'Gas sponsorship is unavailable.','no_sponsor');
+    const workerId=parsed.data.workerId,w=await ctx.chain.readWorker(BigInt(workerId));
+    if(w.employerId!==ctx.cfg.employerId||w.flags!==1)throw new HttpError(403,'Active registered employee required.','forbidden');
+    const balance=await ctx.chain.publicClient.getBalance({address:w.payoutAddr});
+    if(balance>=floor)return {granted:false,reason:'sufficient'};
+    const recent=await ctx.prisma.gasGrant.findFirst({where:{workerId,at:{gt:new Date(Date.now()-24*3600_000)}}});
+    if(recent)return {granted:false,reason:'recent',hash:recent.hash};
+    const hash=await ctx.transfer(Number(BigInt(workerId)%64n),w.payoutAddr,grant);
+    await ctx.prisma.gasGrant.create({data:{workerId,address:w.payoutAddr,amount:grant.toString(),hash}});
+    await ctx.chain.publicClient.waitForTransactionReceipt({hash,timeout:30_000}).catch(()=>undefined);
+    return {granted:true,hash,amount:grant.toString()};
+  });
+
+  /**
+   * Private payslip vaults: ciphertext encrypted on the employee's device with a key derived from a separate
+   * Mera PRF salt. The id is derived from the same namespace, so only the passkey holder can locate or replace it.
+   */
+  const vaultId=z.string().regex(/^[0-9a-f]{64}$/);
+  app.get<{Params:{id:string}}>('/vault/:id',async(req)=>{
+    if(!vaultId.safeParse(req.params.id).success)throw new HttpError(400,'Invalid vault id.','bad_request');
+    const row=await ctx.prisma.privateVault.findUnique({where:{id:req.params.id}});
+    return row?{nonce:row.nonce,ciphertext:row.ciphertext,updatedAt:row.updatedAt}:{nonce:null,ciphertext:null};
+  });
+  app.post('/vault',async(req)=>{
+    const parsed=z.object({id:vaultId,nonce:z.string().regex(/^[A-Za-z0-9_-]{16}$/),ciphertext:z.string().regex(/^[A-Za-z0-9_-]{24,40000}$/)}).strict().safeParse(req.body);
+    if(!parsed.success)throw new HttpError(400,'Invalid encrypted record.','bad_request');
+    const {id,nonce,ciphertext}=parsed.data;
+    await ctx.prisma.privateVault.upsert({where:{id},create:{id,nonce,ciphertext},update:{nonce,ciphertext}});
+    return {saved:true};
+  });
+
 }
