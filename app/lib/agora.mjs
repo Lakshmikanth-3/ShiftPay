@@ -97,3 +97,12 @@ export async function instantSettle({client,wallet,account,amount,to=account,sli
   await confirm(client,hashes.settle);
   return {hashes,received:quoted,display:formatUnits(quoted,18)};
 }
+
+/** Agora public API (no key): AUSD supply on Monad mainnet, shown as live trust data next to transfers. */
+export async function agoraMonadMetrics(fetcher=fetch){
+  const response=await fetcher('https://api.agora.finance/v0/metrics',{cache:'no-store'});
+  if(!response.ok)throw new Error('Agora metrics unavailable');
+  const data=await response.json(),monad=data.chains?.find(c=>c.network==='monad'||c.chainId==='eip155:143');
+  if(!monad)throw new Error('Agora metrics do not list Monad');
+  return {circulating:Number(monad.circulatingSupply),total:Number(monad.totalSupply),chains:data.chains.length};
+}

@@ -7,7 +7,10 @@ import {usePayroll} from './payroll.jsx';
 import PasskeyAccess from './passkey-access.jsx';
 import {testnetTokens} from '../lib/testnet-tokens.mjs';
 import {pitchUrl} from '../lib/pitch.mjs';
-import {agora,balances,instantSettle,parseAmount,quoteSettlement,requestAusd,sendToken} from '../lib/agora.mjs';
+import {unlockPayslipVault,openPayslips,sealPayslips} from '../lib/private-payslips.mjs';
+import {agora,agoraMonadMetrics,balances,instantSettle,parseAmount,quoteSettlement,requestAusd,sendToken} from '../lib/agora.mjs';
+
+const lowFee=10_000_000_000_000_000n; // below 0.01 MON the employer tops up network-fee credit
 
 const tabs=[['','Home','⌂'],['send','Send','↗'],['cashout','Cash out','⇄'],['history','History','☰'],['profile','Profile','◉']];
 const explorer=hash=>'https://testnet.monadexplorer.com/tx/'+hash;
@@ -40,23 +43,37 @@ function useWallet(){
 
 function TxLink({hash,children='View on explorer'}){return hash?<a className="m-link" href={explorer(hash)} target="_blank" rel="noreferrer">{children} ↗</a>:null}
 function Feedback({w}){return <>{w.error&&<p className="m-alert error" role="alert">{w.error}</p>}{w.status&&!w.error&&<p className="m-alert" role="status">{w.status}</p>}</>}
-function GasNote({w}){return w.bal&&w.bal.MON===0n?<p className="m-alert warn">This account needs a little test MON for network fees. Ask your employer, or use <a href="https://faucet.monad.xyz" target="_blank" rel="noreferrer">faucet.monad.xyz</a>.</p>:null}
+function GasNote({w}){if(!w.bal||w.bal.MON>=lowFee)return null;return <p className="m-alert warn">{w.p.owns?'Setting up your free network-fee credit from your employer…':'Fee credit is empty. It is added automatically once your employer registers you.'}</p>}
+
+/** Employer-paid gas: a registered employee with an empty fee balance gets a small top-up from the payroll relayer. */
+function useSponsoredGas(w){
+  const p=w.p,asked=useRef('');
+  useEffect(()=>{const key=p.selected+':'+w.account;if(!p.owns||!w.bal||w.bal.MON>=lowFee||asked.current===key)return;asked.current=key;
+    p.api('gas-grants',{workerId:p.selected}).then(r=>{if(r.granted){w.addActivity({type:'Fee credit from employer',amount:'+0.05',symbol:'MON',hash:r.hash});w.refresh();}}).catch(()=>{asked.current='';});
+  },[p.owns,p.selected,w.bal?.MON,w.account]);
+}
 
 function Login(){
   const p=usePayroll();
   return <div className="m-login"><div className="m-logo">S</div><h1>ShiftPay</h1><p>Your wages, as you earn them. Send AUSD anywhere in seconds.</p>
     <div className="m-card"><PasskeyAccess allowCreate/></div>
-    <button className="m-ghost" disabled={!p.ready} onClick={p.login}>Continue with email instead</button>
-    <p className="m-fine">Secured by a Mera passkey on this device. No seed phrase, no wallet pop-ups.</p></div>;
+    <p className="m-fine">One fingerprint or face scan creates your account. No seed phrase, no app to install, no password. Use the same passkey on any device to get back in.</p></div>;
 }
 
 function Wages({w}){
   const p=w.p,[id,setId]=useState('');
   const key=w.account?'shiftpay:worker:'+w.account.toLowerCase():null;
-  useEffect(()=>{if(!key||!p.cfg||p.selected)return;let saved=null;try{saved=localStorage.getItem(key)}catch{}if(saved){p.setWorkerId(saved);p.choose({preventDefault(){}},saved)}},[key,p.cfg]);
+  const [finding,setFinding]=useState(false);
+  useEffect(()=>{if(!key||!p.cfg||p.selected)return;let saved=null;try{saved=localStorage.getItem(key)}catch{}
+    const open=id=>{p.setWorkerId(id);p.choose({preventDefault(){}},id)};
+    if(saved){open(saved);return;}
+    // Stateless recovery: nothing saved on this device, so find the payroll registered to this passkey's address.
+    setFinding(true);p.api('workers/by-address/'+w.account).then(r=>{if(r.workerIds?.length)open(r.workerIds[0]);}).catch(()=>{}).finally(()=>setFinding(false));
+  },[key,p.cfg]);
   useEffect(()=>{if(key&&p.owns&&p.selected)try{localStorage.setItem(key,p.selected)}catch{}},[key,p.owns,p.selected]);
   const dialog=useRef(null);
   if(!p.cfg)return <section className="m-card"><h3>Payroll</h3><p className="m-muted">{p.error?.includes('pending')?'Your employer has not connected '+p.asset+' payroll yet.':p.error||'Connecting to payroll…'}</p><button className="m-ghost" onClick={p.configure}>Retry</button></section>;
+  if(finding&&!p.worker)return <section className="m-card"><h3>Finding your payroll…</h3><p className="m-muted">Looking up the employer that registered this account.</p></section>;
   if(!p.worker||!p.owns)return <section className="m-card"><h3>Link your payroll</h3><p className="m-muted">Enter the employee ID your company gave you. Your passkey account must be the payout account they registered.</p>
     <form className="m-row" onSubmit={e=>{e.preventDefault();p.setWorkerId(id);p.choose(e,id)}}><input inputMode="numeric" placeholder="Employee ID" value={id} onChange={e=>setId(e.target.value)} required/><button className="m-primary" disabled={p.loading}>{p.loading?'…':'Link'}</button></form>
     {p.worker&&!p.owns&&<p className="m-alert error">Employee {p.selected} is registered to {short(p.worker.worker.payoutAddr)}, not this account.</p>}</section>;
@@ -71,12 +88,12 @@ function Wages({w}){
 }
 
 function Home({w}){
-  const p=w.p,b=w.bal;
+  const p=w.p,b=w.bal;useSponsoredGas(w);
   async function faucet(){const hash=await w.run('Requesting test AUSD from Agora',wallet=>requestAusd({client:p.client,wallet,account:w.account}));if(hash){w.addActivity({type:'Received from Agora faucet',amount:'10,000',symbol:'AUSD',hash});w.setStatus('10,000 test AUSD received.')}}
   return <>
-    <section className="m-balance"><p>Wallet balance</p><strong>{b?fmt(b.AUSD,6):'…'} <small>AUSD</small></strong>
-      <div className="m-sub">{b&&<>{fmt(b.USDC,6)} USDC · {fmt(b.CTK,18)} CTK · {fmt(b.MON,18,3)} MON</>}</div>
-      <div className="m-address" title={w.account}>{short(w.account)}</div></section>
+    <section className="m-balance"><p>Digital dollars</p><strong>${b?fmt(b.AUSD+b.USDC,6):'…'}</strong>
+      <div className="m-sub">{b&&<>{fmt(b.AUSD,6)} AUSD · {fmt(b.USDC,6)} USDC · {fmt(b.CTK,18)} local (CTK)</>}</div>
+      <div className="m-sub">{b&&<>Fee credit {b.MON>=lowFee?'ready':'empty'} · paid by your employer</>}</div></section>
     <nav className="m-actions" aria-label="Quick actions">
       <Link href="/employee/send"><i>↗</i>Send</Link>
       <Link href="/employee/receive"><i>↙</i>Receive</Link>
@@ -89,22 +106,40 @@ function Home({w}){
   </>;
 }
 
+function AgoraTrust(){
+  const [m,setM]=useState(null);
+  useEffect(()=>{agoraMonadMetrics().then(setM).catch(()=>setM(false))},[]);
+  return m?<p className="m-fine">AUSD by Agora · {Math.round(m.circulating).toLocaleString()} AUSD circulating on Monad · live from Agora's public API</p>:null;
+}
+
 function Send({w}){
-  const p=w.p,[to,setTo]=useState(''),[amount,setAmount]=useState(''),[symbol,setSymbol]=useState('AUSD'),[note,setNote]=useState(''),[done,setDone]=useState(null);
-  const token=tokenList.find(t=>t.symbol===symbol);
+  const p=w.p,[to,setTo]=useState(''),[amount,setAmount]=useState(''),[mode,setMode]=useState('settle'),[symbol,setSymbol]=useState('AUSD'),[note,setNote]=useState(''),[done,setDone]=useState(null);
+  const settle=mode==='settle',sym=settle?'AUSD':symbol,token=tokenList.find(t=>t.symbol===sym);
+  useSponsoredGas(w);
   async function submit(e){e.preventDefault();setDone(null);
     const value=(()=>{try{return parseAmount(amount,token.decimals)}catch(err){w.setError(err.message)}})();if(!value)return;
-    const hash=await w.run('Sending '+amount+' '+symbol,wallet=>sendToken({client:p.client,wallet,account:w.account,token:token.address,to,amount:value}));
-    if(hash){w.addActivity({type:'Sent to '+short(to)+(note?' · '+note:''),amount:'-'+amount,symbol,hash});w.setStatus('');setDone({hash,amount,to});setAmount('');}}
-  return <section className="m-card"><h2>Send money</h2><p className="m-muted">Send to family or anyone, anywhere. Settles on Monad in about a second.</p>
+    if(settle){
+      if(!/^0x[0-9a-fA-F]{40}$/.test(to)){w.setError('Enter a valid recipient address.');return;}
+      const result=await w.run('Sending through Agora Instant Settlement',wallet=>instantSettle({client:p.client,wallet,account:w.account,amount:value,to,onStep:w.setStatus}));
+      if(result){w.addActivity({type:'Sent abroad to '+short(to)+(note?' · '+note:''),amount:'-'+amount,symbol:'AUSD',hash:result.hashes.settle});w.setStatus('');setDone({hash:result.hashes.settle,amount,to,received:result.display+' local (CTK)'});setAmount('');}
+      return;
+    }
+    const hash=await w.run('Sending '+amount+' '+sym,wallet=>sendToken({client:p.client,wallet,account:w.account,token:token.address,to,amount:value}));
+    if(hash){w.addActivity({type:'Sent to '+short(to)+(note?' · '+note:''),amount:'-'+amount,symbol:sym,hash});w.setStatus('');setDone({hash,amount,to,received:amount+' '+sym});setAmount('');}}
+  return <section className="m-card"><h2>Send money</h2><p className="m-muted">Send to family or anyone, anywhere. Settled instantly on Monad.</p>
+    <div className="m-seg" role="radiogroup" aria-label="Delivery">
+      <button type="button" role="radio" aria-checked={settle} className={settle?'on':''} onClick={()=>setMode('settle')}>Abroad · instant settlement</button>
+      <button type="button" role="radio" aria-checked={!settle} className={!settle?'on':''} onClick={()=>setMode('direct')}>Digital dollars</button>
+    </div>
     <form className="m-form" onSubmit={submit}>
       <label>Recipient address<input value={to} onChange={e=>setTo(e.target.value.trim())} placeholder="0x…" required autoComplete="off"/></label>
-      <label>Amount<div className="m-row"><input inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0.00" required/><select value={symbol} onChange={e=>setSymbol(e.target.value)}><option>AUSD</option><option>USDC</option></select></div></label>
-      <small className="m-muted">Balance: {w.bal?fmt(w.bal[symbol],token.decimals,6):'…'} {symbol}</small>
+      <label>Amount<div className="m-row"><input inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0.00" required/>{settle?<span className="m-unit">AUSD</span>:<select value={symbol} onChange={e=>setSymbol(e.target.value)}><option>AUSD</option><option>USDC</option></select>}</div></label>
+      <small className="m-muted">Balance: {w.bal?fmt(w.bal[sym],token.decimals,6):'…'} {sym}{settle?' · recipient receives local currency (CTK) 1:1 through Agora, no fee':''}</small>
       <label>Note (optional, kept on this device)<input maxLength={80} value={note} onChange={e=>setNote(e.target.value)}/></label>
-      <button className="m-primary wide" disabled={w.working}>{w.working?'Sending…':'Send '+symbol}</button>
+      <button className="m-primary wide" disabled={w.working}>{w.working?'Sending…':'Send '+sym}</button>
     </form><Feedback w={w}/><GasNote w={w}/>
-    {done&&<div className="m-success"><b>Sent {done.amount} {symbol}</b><p>To {short(done.to)}</p><TxLink hash={done.hash}/></div>}</section>;
+    {done&&<div className="m-success"><b>Sent {done.amount} {sym}</b><p>To {short(done.to)} · they received {done.received}</p><TxLink hash={done.hash}/></div>}
+    <AgoraTrust/></section>;
 }
 
 function Receive({w}){
@@ -117,7 +152,7 @@ function Receive({w}){
 }
 
 function CashOut({w}){
-  const p=w.p,[amount,setAmount]=useState(''),[quote,setQuote]=useState(null),[done,setDone]=useState(null);
+  useSponsoredGas(w);const p=w.p,[amount,setAmount]=useState(''),[quote,setQuote]=useState(null),[done,setDone]=useState(null);
   useEffect(()=>{let live=true;setQuote(null);let value;try{value=parseAmount(amount)}catch{return}quoteSettlement(p.client,value).then(q=>live&&setQuote(q)).catch(()=>live&&setQuote(0n));return()=>{live=false}},[amount]);
   async function submit(e){e.preventDefault();setDone(null);
     const value=(()=>{try{return parseAmount(amount)}catch(err){w.setError(err.message)}})();if(!value)return;
@@ -131,7 +166,7 @@ function CashOut({w}){
       <button className="m-primary wide" disabled={w.working||quote===0n}>{w.working?'Settling…':'Settle instantly'}</button>
     </form><Feedback w={w}/><GasNote w={w}/>
     {done&&<div className="m-success"><b>Received {done.display} CTK</b>{done.hashes.whitelist&&<TxLink hash={done.hashes.whitelist}>Agora registration</TxLink>}{done.hashes.approve&&<TxLink hash={done.hashes.approve}>Authorization</TxLink>}<TxLink hash={done.hashes.settle}>Settlement</TxLink></div>}
-    <p className="m-fine">First use registers this account with Agora's testnet whitelister, then authorizes AUSD. Testnet supports AUSD → CTK only.</p></section>;
+    <p className="m-fine">First use registers this account with Agora's testnet whitelister, then authorizes AUSD. Testnet supports AUSD → CTK only.</p><AgoraTrust/></section>;
 }
 
 function Recent({w,all=false}){
@@ -145,21 +180,45 @@ function Recent({w,all=false}){
 
 function History({w}){return <Recent w={w} all/>}
 
+
+/** Payslips encrypted with a key derived from a separate passkey namespace; readable on any device with the passkey. */
+function Payslips({w}){
+  const p=w.p,vault=useRef(null),[slips,setSlips]=useState(null),[busy,setBusy]=useState(''),[error,setError]=useState('');
+  async function unlock(){if(!vault.current)vault.current=await unlockPayslipVault();return vault.current;}
+  async function open(){setBusy('Unlocking your private payslips…');setError('');try{const v=await unlock();setSlips(await openPayslips(v.key,await p.api('vault/'+v.id)));}catch(e){setError(e.message||'Could not open payslips.');}finally{setBusy('');}}
+  async function save(){if(!p.worker||!p.owns){setError('Link your payroll first.');return;}
+    setBusy('Encrypting this payslip on your device…');setError('');
+    try{const v=await unlock(),x=p.worker,existing=await openPayslips(v.key,await p.api('vault/'+v.id));
+      const slip={at:Date.now(),employeeId:p.selected,company:p.dashboard?.company?.name||'',rate:p.units(x.worker.ratePerHour)+'/h',gross:p.units(BigInt(x.earned.net)+BigInt(x.earned.tax)),tax:p.units(x.earned.tax),withdrawn:p.units(x.worker.withdrawn),available:p.units(x.claimable)};
+      const next=[slip,...existing].slice(0,60),sealed=await sealPayslips(v.key,next);
+      await p.api('vault',{id:v.id,...sealed});setSlips(next);}
+    catch(e){setError(e.message||'Could not save payslip.');}finally{setBusy('');}}
+  return <section className="m-card"><h3>Private payslips</h3>
+    <p className="m-muted">Encrypted on this phone with a key only your passkey can recreate. ShiftPay stores unreadable data, not linked to your wallet. Open them on any device with the same passkey.</p>
+    <div className="m-row"><button className="m-primary" disabled={!!busy} onClick={save}>Save today's payslip</button><button className="m-ghost" disabled={!!busy} onClick={open}>Open payslips</button></div>
+    {busy&&<p className="m-alert" role="status">{busy}</p>}{error&&<p className="m-alert error" role="alert">{error}</p>}
+    {slips&&(slips.length?<ul className="m-list">{slips.map(s=><li key={s.at}><div><b>{new Date(s.at).toLocaleString()}</b><small>{s.company||'Employee '+s.employeeId} · {s.rate}</small></div><div className="right"><b>{s.gross}</b><small>tax {s.tax} · taken {s.withdrawn}</small></div></li>)}</ul>:<p className="m-muted">No payslips saved yet.</p>)}
+  </section>;
+}
+
 function Profile({w}){
   const p=w.p,profile=p.dashboard?.workers?.find(r=>r.workerId===p.selected)?.profile;
   return <section className="m-card"><h2>{profile?.name||'Your account'}</h2>{profile&&<p className="m-muted">{profile.role} · {profile.department}</p>}
     {profile?.notes&&<p className="m-alert">{profile.notes}</p>}
-    <dl className="m-dl"><dt>Wallet</dt><dd className="m-mono">{w.account}</dd><dt>Sign-in</dt><dd>{p.wallet?.walletClientType==='mera'?'Mera passkey':'Email account'}</dd>
+    <dl className="m-dl"><dt>Wallet</dt><dd className="m-mono">{w.account}</dd><dt>Sign-in</dt><dd>Mera passkey, works on any device with the same passkey</dd>
       {p.worker&&<><dt>Employee ID</dt><dd>{p.selected}</dd><dt>Hourly rate</dt><dd>{p.units(p.worker.worker.ratePerHour)}</dd><dt>Withholding</dt><dd>{Number(p.worker.worker.withholdingBps)/100}%</dd></>}</dl>
-    <label className="m-form">Payroll currency<select value={p.asset} disabled={p.busy||!!p.pending} onChange={e=>p.setAsset(e.target.value)}><option>AUSD</option><option>USDC</option></select></label>
+    <details className="m-form"><summary>Advanced</summary><label>Payroll currency<select value={p.asset} disabled={p.busy||!!p.pending} onChange={e=>p.setAsset(e.target.value)}><option>AUSD</option><option>USDC</option></select></label></details>
     {(p.owns)&&<button className="m-ghost wide" disabled={p.busy} onClick={()=>p.loadDashboard()}>Load company notes (signature, no funds move)</button>}
     <button className="m-ghost wide" onClick={()=>p.logout().catch(()=>{})}>Sign out</button></section>;
+}
+
+function ProfileScreen({w}){return <><Profile w={w}/><Payslips w={w}/></>;
 }
 
 export default function WalletApp({section=''}){
   const p=usePayroll(),w=useWallet();
   const signedIn=p.authenticated&&p.wallet;
-  const screen={send:Send,receive:Receive,cashout:CashOut,history:History,profile:Profile}[section]||Home;
+  const screen={send:Send,receive:Receive,cashout:CashOut,history:History,profile:ProfileScreen}[section]||Home;
   return <div className="m-shell"><div className="m-phone">
     <header className="m-top"><span className="m-logo small">S</span><b>ShiftPay</b><a className="m-pitch" href={pitchUrl} target="_blank" rel="noreferrer">▶ Pitch</a><span className="m-net">Testnet</span></header>
     <main className="m-main">{!signedIn?<Login/>:React.createElement(screen,{w})}

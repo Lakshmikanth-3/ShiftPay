@@ -1,6 +1,5 @@
 'use client';
 import React, {useEffect, useState, useRef, createContext, useContext} from 'react';
-import {PrivyProvider, usePrivy, useWallets} from '@privy-io/react-auth';
 import {createPublicClient, createWalletClient, custom, defineChain, http, erc20Abi, parseUnits, parseEther, formatUnits, isAddress, toHex,keccak256,toBytes} from 'viem';
 import {metronomeVaultAbi as abi} from '../lib/vault-abi.mjs';
 import {testnetTokens} from '../lib/testnet-tokens.mjs';
@@ -27,20 +26,19 @@ class Boundary extends React.Component {
 }
 const PayrollContext=createContext(null);
 export const usePayroll=()=>useContext(PayrollContext);
-export default function Payroll({children}){return <Boundary><PrivyProvider appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID || 'cmuxon0z3000x0cjkjw1247eo'} config={{loginMethods:['email'],appearance:{theme:'light',accentColor:'#203b2e'},embeddedWallets:{ethereum:{createOnLogin:'all-users'}},defaultChain:chain,supportedChains:[chain]}}><Workspace>{children}</Workspace></PrivyProvider></Boundary>;}
+// Mera passkeys are the entire account layer: no email login, extension or custody backend.
+export default function Payroll({children}){return <Boundary><Workspace>{children}</Workspace></Boundary>;}
 function Workspace({children}){
   const [dashboard,setDashboard]=useState(null),[dashboardError,setDashboardError]=useState('');
   const access=useRef(null),dashboardEpoch=useRef(0),dashboardPolling=useRef(false);
   const [asset,setAsset]=useState('USDC'),[holdings,setHoldings]=useState(null),[holdingsError,setHoldingsError]=useState('');
   const api=(path,body)=>bridgeApi(path,body,asset);
-  const {ready:privyReady,authenticated:privyAuthenticated,login,logout:privyLogout,user}=usePrivy();
-  const {wallets:privyWallets}=useWallets();
+  const user=null,login=()=>{};
   const [meraWallet,setMeraWallet]=useState(null),meraRef=useRef(null);
-  const embeddedWallets=privyWallets.filter(w=>w.walletClientType==='privy');
-  const wallets=meraWallet?[...embeddedWallets,meraWallet]:embeddedWallets;
+  const wallets=meraWallet?[meraWallet]:[];
   const [walletAddress,setWalletAddress]=useState('');
-  const wallet=wallets.find(w=>w.address===walletAddress) || wallets.find(w=>w.walletClientType==='privy') || wallets[0];
-  const authenticated=privyAuthenticated||wallet?.walletClientType==='mera',ready=privyReady||wallet?.walletClientType==='mera';
+  const wallet=wallets.find(w=>w.address===walletAddress) || wallets[0];
+  const authenticated=wallet?.walletClientType==='mera',ready=true;
   const [cfg,setCfg]=useState(null),[workerId,setWorkerId]=useState(''),[selected,setSelected]=useState(''),[worker,setWorker]=useState(null),[history,setHistory]=useState([]),[amount,setAmount]=useState(''),[fundAmount,setFundAmount]=useState(''),[payout,setPayout]=useState(''),[rate,setRate]=useState(''),[bps,setBps]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[pending,setPending]=useState(null),[online,setOnline]=useState(true),[loading,setLoading]=useState(false),[fresh,setFresh]=useState(false);
   const lock=useRef(false),generation=useRef(0),selection=useRef(''),polling=useRef(false),configEpoch=useRef(0),holdingsEpoch=useRef(0);
   async function startMera(create=false,name=''){
@@ -49,7 +47,7 @@ function Workspace({children}){
     catch(e){setError(e.code==='PRF_UNAVAILABLE'?'This authenticator cannot unlock a payroll passkey. Use a passkey provider with PRF support.':errorText(e));}
     finally{lock.current=false;setBusy(false);}
   }
-  async function logout(){meraRef.current?.end();meraRef.current=null;setMeraWallet(null);setWalletAddress('');if(privyAuthenticated)await privyLogout();}
+  async function logout(){meraRef.current?.end();meraRef.current=null;setMeraWallet(null);setWalletAddress('');}
   useEffect(()=>()=>{meraRef.current?.end();},[]);
   useEffect(()=>{if(!meraWallet)return;const timer=setTimeout(()=>{meraWallet.end();if(meraRef.current===meraWallet){meraRef.current=null;setMeraWallet(null);setWalletAddress('');setNotice('Payroll passkey session ended. Unlock your passkey again to continue.');}},15*60*1000);return()=>clearTimeout(timer);},[meraWallet]);
   const [loginSlow,setLoginSlow]=useState(false);
@@ -121,7 +119,7 @@ function Workspace({children}){
     if(lock.current)return;lock.current=true;setBusy(true);setError('');setNotice('');
     try{if(!authenticated||!wallet)throw new Error('Log in and finish wallet setup first.');if(!online)throw new Error('Reconnect before submitting payroll actions.');await task();}catch(e){setError(errorText(e));}finally{lock.current=false;setBusy(false);}
   }
-  async function walletClient(){if(wallet.walletClientType==='mera'){if(await client.getChainId()!==chain.id)throw new Error('Payroll RPC chain mismatch.');return wallet.client;}if(wallet.walletClientType!=='privy')throw new Error('Use a payroll passkey or email account.');const provider=await wallet.getEthereumProvider();const accounts=await provider.request({method:'eth_accounts'});if(!accounts.some(account=>account.toLowerCase()===wallet.address.toLowerCase()))throw new Error('Your authorized payroll account is no longer connected.');if(Number(await provider.request({method:'eth_chainId'}))!==chain.id)await wallet.switchChain(chain.id);return createWalletClient({account:wallet.address,chain,transport:custom(provider)});}
+  async function walletClient(){if(wallet?.walletClientType!=='mera')throw new Error('Unlock your payroll passkey first.');if(await client.getChainId()!==chain.id)throw new Error('Payroll RPC chain mismatch.');return wallet.client;}
   async function authorizeDashboard(data={}){
     if(!cfg)throw new Error('Connect deployed payroll first.');
     const epoch=dashboardEpoch.current,block=await client.getBlock(),deadline=block.timestamp+600n;
@@ -188,5 +186,5 @@ function Workspace({children}){
   });}
   async function choose(event,requestedId=workerId){event.preventDefault();if(!/^\d+$/.test(requestedId)||BigInt(requestedId)===0n){setError('Enter a positive worker ID.');return;}const id=BigInt(requestedId).toString();setWorkerId(id);setLoading(true);setError('');generation.current++;selection.current=id;setSelected(id);setWorker(null);setHistory([]);setFresh(false);try{await refresh(id);}catch{}finally{setLoading(false);}}
   const disabled=busy||!!pending||!fresh||!online;
-  return <PayrollContext.Provider value={{client,walletClient,meraWallet,startMera,dashboard,dashboardError,loadDashboard,asset,setAsset,holdings,holdingsError,ready,authenticated,login,logout,user,wallet,wallets,setWalletAddress,cfg,workerId,setWorkerId,selected,worker,history,amount,setAmount,fundAmount,setFundAmount,payout,setPayout,rate,setRate,bps,setBps,busy,error,notice,pending,online,loading,fresh,loginSlow,admin,owns,units,configure,refreshHoldings,withdraw,clock,direct,execute,fund,register,choose,disabled}}>{children}</PayrollContext.Provider>;
+  return <PayrollContext.Provider value={{api,client,walletClient,meraWallet,startMera,dashboard,dashboardError,loadDashboard,asset,setAsset,holdings,holdingsError,ready,authenticated,login,logout,user,wallet,wallets,setWalletAddress,cfg,workerId,setWorkerId,selected,worker,history,amount,setAmount,fundAmount,setFundAmount,payout,setPayout,rate,setRate,bps,setBps,busy,error,notice,pending,online,loading,fresh,loginSlow,admin,owns,units,configure,refreshHoldings,withdraw,clock,direct,execute,fund,register,choose,disabled}}>{children}</PayrollContext.Provider>;
 }

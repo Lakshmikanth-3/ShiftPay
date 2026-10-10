@@ -51,3 +51,7 @@
 /* Keep the bottom tab bar inside the phone frame (overrides the global nav reset above). */
 .m-shell nav.m-tabs{max-width:440px;width:100%;left:50%;transform:translateX(-50%);margin:0}
 @media (min-width:560px){.m-shell nav.m-tabs{bottom:24px;border-radius:0 0 28px 28px}.m-phone{padding-bottom:0}}
+.m-seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--m-bg);border-radius:14px;padding:4px;margin-top:12px}
+.m-seg button{border:0;background:transparent;border-radius:10px;padding:10px 6px;font-weight:700;font-size:13px;color:var(--m-muted);cursor:pointer;min-height:40px}
+.m-seg button.on{background:#fff;color:var(--m-brand);box-shadow:0 1px 3px #0001}
+.m-unit{padding:13px 14px;border:1px solid var(--m-line);border-radius:12px;background:var(--m-bg);font-weight:700}

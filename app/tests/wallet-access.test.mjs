@@ -6,10 +6,10 @@ test('active payroll UI contains no MetaMask or external connection entry points
   for(const file of ['deployment.jsx','payroll.jsx','product.jsx','passkey-access.jsx'])
     assert.doesNotMatch(read(file),/metamask|useConnectWallet|connectWallet|window\.ethereum/i,file);
 });
-test('Privy uses email login and filters previously linked external wallets',()=>{
-  const source=read('payroll.jsx');assert.match(source,/loginMethods:\['email'\]/);
-  assert.match(source,/privyWallets\.filter\(w=>w\.walletClientType==='privy'\)/);
-  assert.match(source,/createOnLogin:'all-users'/);
+test('Mera passkeys are the entire account layer: no email login or external wallets',()=>{
+  const source=read('payroll.jsx');assert.doesNotMatch(source,/@privy-io|usePrivy|PrivyProvider/);
+  assert.match(source,/const wallets=meraWallet\?\[meraWallet\]:\[\];/);
+  assert.doesNotMatch(read('wallet-app.jsx'),/Continue with email/);
 });
 test('company registration requires the actual Mera signer',()=>{
   const source=read('deployment.jsx');assert.match(source,/const company=payroll\.meraWallet\?\.address\|\|savedCompany/);

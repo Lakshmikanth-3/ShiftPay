@@ -5,8 +5,8 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const allowed = /^(config|health|dashboard|workers\/\d+(\/shifts|\/withdraw-typed-data)?|txs\/[a-zA-Z0-9_-]+|withdrawals|clock-intents)$/;
-const writes = ['withdrawals','clock-intents','dashboard'];
+const allowed = /^(config|health|dashboard|gas-grants|vault|vault\/[0-9a-f]{64}|workers\/by-address\/0x[0-9a-fA-F]{40}|workers\/\d+(\/shifts|\/withdraw-typed-data)?|txs\/[a-zA-Z0-9_-]+|withdrawals|clock-intents)$/;
+const writes = ['withdrawals','clock-intents','dashboard','gas-grants','vault'];
 const serviceKeys = ['VAULT_ADDRESS','VAULT_DEPLOY_BLOCK','EMPLOYER_ID','ATTESTOR_PRIVATE_KEY','RELAYER_PRIVATE_KEYS','WEBHOOK_SECRET','ADMIN_API_TOKEN'];
 const runtimes = new Map();
 
