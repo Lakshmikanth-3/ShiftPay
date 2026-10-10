@@ -1,6 +1,0 @@
-{$AUSD_HOST} {
-    reverse_proxy ausd:8787
-}
-{$USDC_HOST} {
-    reverse_proxy usdc:8787
-}
