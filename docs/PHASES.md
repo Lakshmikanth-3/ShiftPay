@@ -10,7 +10,7 @@ Verification: 36 unit/fuzz tests and 5 stateful invariants passed. Backend verif
 
 ## 2. Connected dashboards: local verification
 
-Separate business and employee routes use real contract reads and signed actions. Company registration requires Mera. Employees use Mera or Privy email embedded accounts. External MetaMask controls and public simulation are removed. Profiles, employee notes and settlement histories persist through the bridge.
+Separate business and employee routes use real contract reads and signed actions. Company registration requires Mera. Both portals use Mera passkeys as the only account layer. External MetaMask controls and public simulation are removed. Profiles, employee notes and settlement histories persist through the bridge.
 
 Verification: 25 wallet/funding tests, 23 localhost browser checks, 22 public production browser checks and 22 Selenium checks passed. Production build passed. These public checks do not prove authenticated payroll settlement. Saved company registration can be displayed while the signing session is locked; signing still requires the actual Mera session.
 
@@ -38,6 +38,6 @@ The earlier external address `0x4e3f8497F732326CFB8cC4d17Ad0688b74582776` remain
 
 ## 5. Sponsor proof, benchmark and submission: pending
 
-Agora/Mera features are implemented against Agora's published testnet contracts: Mera passkey onboarding, AUSD faucet, person-to-person AUSD transfers and Instant Settlement (AUSD → CTK) in the employee mobile wallet. On-chain proof transactions remain to be recorded. Privy email login with embedded accounts is available in both portals.
+Agora/Mera features are implemented against Agora's published testnet contracts: Mera passkey onboarding, AUSD faucet, person-to-person AUSD transfers and Instant Settlement (AUSD → CTK) in the employee mobile wallet. On-chain proof transactions remain to be recorded. Send-abroad uses Instant Settlement for the transfer itself; private payslips use a separate PRF namespace; new accounts receive an automatic fee credit.
 
 A real-network benchmark, the demo recording and the final submission follow end-to-end acceptance. Local benchmark output is not proof of testnet performance.

@@ -151,14 +151,33 @@ onboarding and Agora's Instant Settlement contract on Monad testnet. Every line 
 |---|---|---|
 | Mobile app | Employee wallet, installable, phone-first | |
 | Mera passkey onboarding | Both apps | `@category-labs/mera` |
-| Send AUSD | Send screen | AUSD `0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC` |
+| Send AUSD across borders, settled instantly | Send → *Abroad · instant settlement*: the sender's AUSD goes through Agora's pair and the recipient receives the settled currency in the same transaction | AUSD `0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC` |
 | Instant Settlement | Cash out screen | CTK/AUSD pair `0x1Aa8958Aa34cEC8096EF4381cb335effe977b0ae` |
 | Test AUSD | Get AUSD button | Faucet `0xd236c18D274E54FAccC3dd9DDA4b27965a73ee6C` |
+| Agora public API | Live AUSD supply on Monad shown beside every transfer | `GET https://api.agora.finance/v0/metrics` |
 
 The first cash-out registers the account with Agora's testnet whitelister
 (`0x7c10F56d6f04a51376393a1C3670e966863F6BD5`), approves AUSD, then swaps. Each step is a
 confirmed transaction with an explorer link. The pair is checked against Agora's published
 token order before any swap.
+
+### Mera is the entire account layer
+
+| Requirement | How ShiftPay meets it |
+|---|---|
+| One-prompt onboarding | One passkey ceremony creates the account. No seed phrase, extension, email or OTP. |
+| Prompt-free signing, scoped session | After unlocking, payroll actions sign without prompts for 15 minutes; then the key is wiped and the next action asks again. |
+| Stateless test | Clear storage or use a new device: the passkey re-derives the same address, the app finds the payroll registered to that address on chain, and private payslips decrypt again. |
+| Time to first transaction | New accounts get a small network-fee credit automatically from the payroll relayer (one per address, capped per day), so the first transaction needs no faucet. |
+| No custody backend | Keys exist only in the browser tab. The server holds payroll records and ciphertext, never keys. |
+
+### One passkey, many keys: private payslips
+
+The wallet key comes from Mera's default PRF salt. Payslips use a second, unrelated namespace,
+`sha256("shiftpay.payslips.v1")`. HKDF turns that PRF output into an AES-256-GCM key and an opaque storage id.
+The phone encrypts each payslip; the server stores ciphertext under an id it cannot link to any wallet. On a
+second device the same passkey re-derives the same key and id and the payslips decrypt live. Nothing secret
+is persisted anywhere. See `app/lib/private-payslips.mjs` and its tests.
 
 **On testnet the pair settles AUSD → CTK only.** The reverse quote returns zero, so the app
 offers only the direction that works rather than a button that fails.

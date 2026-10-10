@@ -1,6 +1,6 @@
 # Submission checklist
 
-Event: Monad Metropolis · Track 02 — Consumer Products & Payments · bounties: Agora (cross-border AUSD), Privy.
+Event: Monad Metropolis · Track 02 — Consumer Products & Payments · bounties: Agora cross-border AUSD, Best Mera-Powered UX, Mera One Passkey Many Keys, Envio.
 
 ## Done
 - [x] Architecture and trust model documented ([architecture](architecture.md), [trust model](trust-model.md)).
@@ -8,7 +8,7 @@ Event: Monad Metropolis · Track 02 — Consumer Products & Payments · bounties
 - [x] Payroll bridge with Postgres persistence, hosted on Vercel + Neon.
 - [x] Business website: https://shiftpay-business.vercel.app
 - [x] Employee mobile wallet: https://shiftpay-employee.vercel.app
-- [x] Mera passkey accounts for company and employee; Privy email as an alternative.
+- [x] Mera passkey accounts for company and employee (the only account layer).
 - [x] Agora integration: faucet, AUSD send/receive, Instant Settlement (AUSD → CTK).
 - [x] USDC vault deployed: `0xA1C794EA48A1D86294848D28E85c76328070DB24` (block 69456787, employer 1).
 - [x] Live read-only acceptance checks (`npm run test:live` in `app`).
