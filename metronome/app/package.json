@@ -8,24 +8,31 @@
   "scripts": {
     "dev": "next dev --hostname 127.0.0.1",
     "start": "next start --hostname 127.0.0.1",
-    "test": "node --test mera.test.mjs funding.test.mjs wallet-access.test.mjs setup-funding.test.mjs",
+    "test": "node --test mera.test.mjs funding.test.mjs wallet-access.test.mjs setup-funding.test.mjs agora.test.mjs",
     "pretest": "node prepare-public.cjs",
+    "test:live": "node --test e2e-live.test.mjs",
     "test:browser": "node redesign-browser-check.cjs",
     "test:production": "node production-browser-check.cjs",
     "check": "npm test && npm run build",
-    "build": "node prepare-public.cjs && next build",
+    "build": "node sync-bridge.cjs && node prepare-public.cjs && prisma generate && node migrate-payroll.cjs && next build",
     "predev": "node prepare-public.cjs"
   },
   "dependencies": {
     "@category-labs/mera": "0.2.0",
+    "@prisma/client": "^6.19.3",
     "@privy-io/react-auth": "^3.47.0",
     "@scure/bip32": "2.4.0",
     "@scure/bip39": "2.4.0",
+    "dotenv": "^16.6.1",
+    "fastify": "^5.12.5",
     "next": "^16.4.0",
+    "prisma": "^6.19.3",
+    "qrcode": "^1.5.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "sharp": "^0.35.5",
-    "viem": "^2.56.5"
+    "viem": "^2.56.5",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "esbuild": "^0.28.2"
