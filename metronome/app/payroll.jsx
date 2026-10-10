@@ -1,7 +1,7 @@
 'use client';
 import React, {useEffect, useState, useRef, createContext, useContext} from 'react';
 import {PrivyProvider, usePrivy, useWallets} from '@privy-io/react-auth';
-import {createPublicClient, createWalletClient, custom, defineChain, http, erc20Abi, parseUnits, formatUnits, isAddress, toHex,keccak256,toBytes} from 'viem';
+import {createPublicClient, createWalletClient, custom, defineChain, http, erc20Abi, parseUnits, parseEther, formatUnits, isAddress, toHex,keccak256,toBytes} from 'viem';
 import {metronomeVaultAbi as abi} from './vault-abi.mjs';
 import {testnetTokens} from './testnet-tokens.mjs';
 import {fundingPlan,confirmFundingBatch} from './funding.mjs';
@@ -31,7 +31,7 @@ export default function Payroll({children}){return <Boundary><PrivyProvider appI
 function Workspace({children}){
   const [dashboard,setDashboard]=useState(null),[dashboardError,setDashboardError]=useState('');
   const access=useRef(null),dashboardEpoch=useRef(0),dashboardPolling=useRef(false);
-  const [asset,setAsset]=useState('AUSD'),[holdings,setHoldings]=useState(null),[holdingsError,setHoldingsError]=useState('');
+  const [asset,setAsset]=useState('USDC'),[holdings,setHoldings]=useState(null),[holdingsError,setHoldingsError]=useState('');
   const api=(path,body)=>bridgeApi(path,body,asset);
   const {ready:privyReady,authenticated:privyAuthenticated,login,logout:privyLogout,user}=usePrivy();
   const {wallets:privyWallets}=useWallets();
@@ -157,8 +157,8 @@ function Workspace({children}){
     const {request}=await client.simulateContract({address:cfg.vault,abi,functionName,args,account:wallet.address});
     const hash=await w.writeContract(request);savePending({hash,label});setNotice(`${label} submitted · ${hash}`);
   }
-  async function fund(){await execute(async()=>{
-    if(!admin)throw new Error('Use the registered company account.');const value=positiveAmount(fundAmount,cfg.decimals),w=await walletClient();
+  async function fund(input=fundAmount){await execute(async()=>{
+    if(!admin)throw new Error('Use the registered company account.');const value=positiveAmount(input,cfg.decimals),w=await walletClient();
     const plan=await fundingPlan({client,wallet:w,cfg,workerId:selected,amount:value});
     if(plan.mode==='atomic'){setNotice('Authorize payroll funding once in your company account.');const bundle=await w.sendCalls({calls:plan.calls,forceAtomic:true});savePending({bundleId:bundle.id,workerId:selected,amount:value.toString(),label:'Payroll funding'});setNotice('Payroll funding submitted. Waiting for verified settlement.');return;}
     const balance=await client.readContract({address:cfg.token,abi:erc20Abi,functionName:'balanceOf',args:[wallet.address]});if(balance<value)throw new Error('Your company account has insufficient '+cfg.symbol+' to fund this allocation.');
@@ -170,7 +170,7 @@ function Workspace({children}){
     }
     await direct('fundWorkers',[BigInt(cfg.employerId),[BigInt(selected)],[value]],'Payroll funding');
   });}
-  async function register(event,profile,allocation){event.preventDefault();await execute(async()=>{
+  async function register(event,profile,allocation,gas=false){event.preventDefault();await execute(async()=>{
     if(!admin)throw new Error('Use the registered company account.');if(!/^\d+$/.test(workerId)||BigInt(workerId)===0n||!isAddress(payout))throw new Error('Provide a positive worker ID and a valid payout wallet.');
     const tax=Number(bps);if(!Number.isInteger(tax)||tax<0||tax>10000)throw new Error('Withholding must be between 0 and 10000 basis points.');
     // Select the ID before writing so transaction tracking is scoped to the new worker.
@@ -183,9 +183,10 @@ function Workspace({children}){
         if(plan.mode==='atomic'){const bundle=await w.sendCalls({calls:plan.calls,forceAtomic:true});const tracked={bundleId:bundle.id,workerId,amount:value.toString(),label:'Employee allocation'};localStorage.setItem(key,JSON.stringify(tracked));setPending(tracked);await w.waitForCallsStatus({id:bundle.id,throwOnFailure:true,timeout:120000});if(await confirmFundingBatch({client,wallet:w,cfg,pending:tracked})!=='CONFIRMED')throw new Error('Employee registered. Funding still needs settlement confirmation.');}
         else{if(plan.mode==='approve-then-fund'){setNotice('This account requires token authorization followed by allocation confirmation.');const approved=await w.writeContract({address:cfg.token,abi:erc20Abi,functionName:'approve',args:[cfg.vault,value]});if((await client.waitForTransactionReceipt({hash:approved})).status!=='success')throw new Error('Employee registered, but funding approval failed.');}const funded=await w.writeContract({address:cfg.vault,abi,functionName:'fundWorkers',args:[BigInt(cfg.employerId),[BigInt(workerId)],[value]]});localStorage.setItem(key,JSON.stringify({hash:funded,label:'Employee allocation'}));setPending({hash:funded,label:'Employee allocation'});if((await client.waitForTransactionReceipt({hash:funded})).status!=='success')throw new Error('Employee registered, but payroll funding failed.');}}
 
+      if(gas){setNotice('Sending 0.1 test MON for the employee network fees…');const gasHash=await w.sendTransaction({to:payout,value:parseEther('0.1')});if((await client.waitForTransactionReceipt({hash:gasHash})).status!=='success')throw new Error('Employee registered and funded, but the network fee transfer failed.');}
       await authorizeDashboard({employee:{workerId,...profile}});setNotice('Employee registered, payroll allocation confirmed, and employee details saved.');}
   });}
   async function choose(event,requestedId=workerId){event.preventDefault();if(!/^\d+$/.test(requestedId)||BigInt(requestedId)===0n){setError('Enter a positive worker ID.');return;}const id=BigInt(requestedId).toString();setWorkerId(id);setLoading(true);setError('');generation.current++;selection.current=id;setSelected(id);setWorker(null);setHistory([]);setFresh(false);try{await refresh(id);}catch{}finally{setLoading(false);}}
   const disabled=busy||!!pending||!fresh||!online;
-  return <PayrollContext.Provider value={{meraWallet,startMera,dashboard,dashboardError,loadDashboard,asset,setAsset,holdings,holdingsError,ready,authenticated,login,logout,user,wallet,wallets,setWalletAddress,cfg,workerId,setWorkerId,selected,worker,history,amount,setAmount,fundAmount,setFundAmount,payout,setPayout,rate,setRate,bps,setBps,busy,error,notice,pending,online,loading,fresh,loginSlow,admin,owns,units,configure,refreshHoldings,withdraw,clock,direct,execute,fund,register,choose,disabled}}>{children}</PayrollContext.Provider>;
+  return <PayrollContext.Provider value={{client,walletClient,meraWallet,startMera,dashboard,dashboardError,loadDashboard,asset,setAsset,holdings,holdingsError,ready,authenticated,login,logout,user,wallet,wallets,setWalletAddress,cfg,workerId,setWorkerId,selected,worker,history,amount,setAmount,fundAmount,setFundAmount,payout,setPayout,rate,setRate,bps,setBps,busy,error,notice,pending,online,loading,fresh,loginSlow,admin,owns,units,configure,refreshHoldings,withdraw,clock,direct,execute,fund,register,choose,disabled}}>{children}</PayrollContext.Provider>;
 }

@@ -20,6 +20,6 @@ test('company registration requires the actual Mera signer',()=>{
   assert.match(source,/Unlock the company payroll passkey first/);
 });
 test('employee onboarding supports creating a passkey and does not prefill an unsupported payout account',()=>{
-  assert.match(read('product.jsx'),/<PasskeyAccess allowCreate\/>/);
+  assert.match(read('wallet-app.jsx'),/<PasskeyAccess allowCreate\/>/);
   assert.match(read('payroll.jsx'),/\[payout,setPayout\]=useState\(''\)/);
 });
