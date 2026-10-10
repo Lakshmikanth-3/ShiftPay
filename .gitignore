@@ -15,3 +15,27 @@ data/
 **/vault-abi.mjs
 **/public/icon-192.png
 **/public/icon-512.png
+
+# One-off local maintenance scripts, the retired static prototype and account helpers (not part of the app)
+metronome/app/connect-*.cjs
+metronome/app/combine-company-registration.cjs
+metronome/app/polish-release.cjs
+metronome/app/remove-external-wallet.cjs
+metronome/app/rename-shiftpay.cjs
+metronome/app/restructure.cjs
+metronome/app/simplify-company-setup.cjs
+metronome/app/update-setup-check.cjs
+metronome/app/wire-mera.cjs
+metronome/app/vercel-*.cjs
+metronome/app/vercel-products.json
+metronome/app/app.js
+metronome/app/auth.jsx
+metronome/app/build-auth.cjs
+metronome/app/check.cjs
+metronome/app/index.html
+metronome/app/server.cjs
+metronome/app/styles.css
+metronome/app/browser-check.cjs
+metronome/app/connected-browser-check.cjs
+videoscript.md
+metronome/benchmark/results/*/raw.json
