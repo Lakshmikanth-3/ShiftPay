@@ -1,0 +1,12 @@
+node_modules/
+assets/
+.env
+.env.local
+.next/
+.next-build/
+public/preview/
+lib/vault-abi.mjs
+
+.vercel
+bridge-runtime/
+prisma/
