@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "next dev --hostname 127.0.0.1",
     "start": "next start --hostname 127.0.0.1",
-    "test": "node --test tests/mera.test.mjs tests/funding.test.mjs tests/wallet-access.test.mjs tests/setup-funding.test.mjs tests/agora.test.mjs",
+    "test": "node --test tests/mera.test.mjs tests/funding.test.mjs tests/wallet-access.test.mjs tests/setup-funding.test.mjs tests/agora.test.mjs tests/private-payslips.test.mjs",
     "pretest": "node scripts/prepare-public.cjs",
     "test:live": "node --test tests/e2e-live.test.mjs",
     "test:browser": "node tests/redesign-browser-check.cjs",
