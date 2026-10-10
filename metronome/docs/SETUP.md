@@ -1,4 +1,4 @@
-﻿# ShiftPay real testnet setup
+# ShiftPay real testnet setup
 
 ## Live portals
 
@@ -6,7 +6,7 @@
 - Employee: https://shiftpay-employee.vercel.app
 - Repository: https://github.com/Lakshmikanth-3/ShiftPay
 
-The portals are deployed. Real payroll vaults, hosted bridge endpoints and funded employee settlement are still pending. See PHASES.md for verified release gates.
+The portals and the USDC payroll backend are live. Funded employee settlement and the AUSD vault are still pending. See PHASES.md for verified release gates.
 
 ## Company account
 
@@ -22,15 +22,11 @@ Choose USDC or AUSD and register the company using the single primary action. Th
 
 Record the actual vault address, employer ID, deployment receipt block and transaction hash for each asset. Do not fill configuration with example addresses. The company name is retained with the browser deployment record; it is saved to the service once the backend is ready and the company authorizes its profile request.
 
-## Render backend
+## Payroll backend (Vercel + Neon)
 
-Connect Lakshmikanth-3/ShiftPay in Render and create a Blueprint from root render.yaml, branch main. It defines two token-specific bridge services and one PostgreSQL database with separate schemas. See RENDER.md.
+The bridge runs inside the business Vercel project. `sync-bridge.cjs` bundles `bridge/src` into the app, the build applies Prisma migrations to one Neon schema per configured token, and `/api/bridge/*` serves requests in-process. The employee project relays to it with `BRIDGE_ORIGIN` and `BRIDGE_RELAY_SECRET`.
 
-Set each service's actual VAULT_ADDRESS, VAULT_DEPLOY_BLOCK, EMPLOYER_ID and EXPECTED_EMPLOYER_ADMIN. The administrator must be the real Mera company address. Configure the matching attestor and relayer secrets privately. Locally prepared service keys are in an ignored environment file; app/deployment-accounts.json contains only public service addresses. Never paste keys into chat or commit them.
-
-Startup applies Prisma migrations and checks chain, token, registered attestor and configured administrator before serving payroll. Fund the displayed gas-paying service account with test MON using the explicit company action. Check the observed service /health endpoint before attaching it to either portal.
-
-Set BRIDGE_AUSD_URL and BRIDGE_USDC_URL on both Vercel projects to the observed HTTPS Render service URLs. Redeploy only the approved projects. Missing services produce a visible setup-pending state rather than sample payroll.
+Run `node configure-vercel.cjs` in `app` once to set both projects' variables from the ignored `bridge/.env.runtime-keys` file without printing secrets. After deploying a vault for another token, run `node configure-vercel.cjs ausd <vault> <deployBlock> <employerId>` and redeploy. Check `https://shiftpay-business.vercel.app/api/bridge/health?asset=USDC` before use.
 
 ## Employee registration
 

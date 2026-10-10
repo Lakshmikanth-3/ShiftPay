@@ -1,4 +1,4 @@
-﻿# ShiftPay release phases
+# ShiftPay release phases
 
 Local tests do not prove hosted payroll works. This checklist replaces the earlier prototype status.
 
@@ -14,31 +14,30 @@ Separate business and employee routes use real contract reads and signed actions
 
 Verification: 25 wallet/funding tests, 23 localhost browser checks, 22 public production browser checks and 22 Selenium checks passed. Production build passed. These public checks do not prove authenticated payroll settlement. Saved company registration can be displayed while the signing session is locked; signing still requires the actual Mera session.
 
-## 3. GitHub and hosting: in progress
+## 3. GitHub and hosting: done
 
-Repository: https://github.com/Lakshmikanth-3/ShiftPay
+Repository: https://github.com/Lakshmikanth-3/ShiftPay. Source commits stay below 1,000 changed lines; timestamps are actual creation times, with no fabricated hackathon history.
 
-Source commits stay below 1,000 changed lines. The owner permits separate larger lockfile and generated ABI commits. Timestamps are actual creation times, with no fabricated hackathon history.
+- Business website: https://shiftpay-business.vercel.app (`/employer`, `/deploy`)
+- Employee mobile wallet: https://shiftpay-employee.vercel.app (`/employee`, `/send`, `/receive`, `/cashout`, `/history`, `/profile`)
 
-Both approved Vercel destinations are deployed and publicly checked: shiftpay-business.vercel.app and shiftpay-employee.vercel.app, under lakshmikanth.27csb@licet.ac.in. The obsolete shiftpay-monad-payroll, employee-dashboard and business-dashboard projects have been removed after replacement checks passed.
+The payroll bridge runs inside the business Vercel project (`/api/bridge/*`) on Neon Postgres with one schema per token; build applies Prisma migrations. The employee project relays bridge calls to the business project with a shared secret. Render is no longer used. Vault events are indexed into Postgres because the public Monad RPC limits `eth_getLogs` to 100 blocks and 25 requests per second. `npm run test:live` checks both deployments read-only.
 
-Render has two token-specific bridges and PostgreSQL schemas. Its administrator setting must use the actual Mera company address. The configuration passes the official schema validator. Free Render services do not guarantee continuous uptime. Cloud provisioning and healthy endpoints are still required.
+## 4. Owner setup and real testnet acceptance: in progress
 
-## 4. Owner setup and real testnet acceptance: pending
+1. Done: company Mera passkey `0x430ff06AB045911e5dC6B7a742ddC11f27F47487` on the business domain, holding 20 USDC and test MON.
+2. Done: USDC vault `0xA1C794EA48A1D86294848D28E85c76328070DB24`, deployment block 69456787, employer ID 1; administrator, attestor and tax recipient verified on chain.
+3. Done: USDC bridge live and healthy on Vercel; relayer `0xC3cDFA6fB75c91c1B26A6067111b1679e2edE494` funded with MON.
+4. Done: employee Mera passkey created on the employee domain.
+5. Pending: register the employee with an allocation and 0.1 MON for fees.
+6. Pending: verified shift, growing balance, relayed withdrawal, employer ledger and withholding.
+7. Pending: exhaustion and top-up with real allocations; retain transaction evidence.
+8. Pending: AUSD vault (fund relayer `0x2FcE83C7Ea6708e831F9D5bD9F12A8154587CfAD`, deploy from `/deploy`, run `node configure-vercel.cjs ausd …`, redeploy).
 
-1. Company passkey created: owner confirmed public address 0x430ff06AB045911e5dC6B7a742ddC11f27F47487 on the stable business domain.
-2. Three test MON confirmed in the Mera company account; issuer USDC/AUSD wage funding remains pending.
-3. USDC vault 0xA1C794EA48A1D86294848D28E85c76328070DB24 and employer ID 1 verified through public contract reads. Administrator, attestor and tax recipient match the approved accounts. Exact deployment receipt collection and AUSD setup remain pending.
-4. Configure actual vault, employer, receipt block and service credentials privately on Render.
-5. Create the employee's supported account and supply its public payout address.
-6. Register the employee, save notes and fund its allocation.
-7. Verify an attested shift, growing balance, relayed withdrawal, employee receipt, employer ledger and withholding.
-8. Verify exhaustion and top-up behavior with real allocations and retain transaction evidence.
-
-The earlier external company address remains the approved testnet tax recipient. It is not the new Mera administrator. External-wallet funds do not move automatically.
+The earlier external address `0x4e3f8497F732326CFB8cC4d17Ad0688b74582776` remains the testnet tax recipient. It is not the Mera administrator.
 
 ## 5. Sponsor proof, benchmark and submission: pending
 
-Agora/Mera need actual passkey onboarding and AUSD cross-border payroll proof matching portal rules. Privy needs embedded signing beyond login. Envio integration is implemented; owner token and live activation remain pending. No MetaMask trading plugin or unrelated trading integrations are claimed.
+Agora/Mera features are implemented against Agora's published testnet contracts: Mera passkey onboarding, AUSD faucet, person-to-person AUSD transfers and Instant Settlement (AUSD → CTK) in the employee mobile wallet. On-chain proof transactions remain to be recorded. Privy email login with embedded accounts is available in both portals.
 
-A real-network benchmark, live demo recording and final submission follow successful end-to-end acceptance. Local benchmark output is not proof of testnet performance.
+A real-network benchmark, the demo recording and the final submission follow end-to-end acceptance. Local benchmark output is not proof of testnet performance.

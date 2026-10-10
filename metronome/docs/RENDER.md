@@ -1,3 +1,5 @@
+> **No longer used.** The payroll bridge now runs on Vercel with Neon Postgres; see [VERCEL.md](VERCEL.md). This page is kept for reference only.
+
 # Render migration
 
 `render.yaml` at the repository root defines two token-specific real Monad bridge services and one PostgreSQL database with separate `ausd`/`usdc` schemas. The live Next.js frontend remains on Vercel. Render only allows one free database per workspace. No guessed deployment URLs are recorded.
