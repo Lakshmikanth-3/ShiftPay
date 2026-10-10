@@ -1,0 +1,80 @@
+[
+  {
+    "design": "sharded",
+    "stage": "open",
+    "workers": 32,
+    "concurrency": 4,
+    "elapsedMs": 1284.0422000000035,
+    "confirmed": 32,
+    "failures": 0,
+    "confirmedPerSecond": 24.92129931555202,
+    "p50Ms": 159.5853999999963,
+    "p95Ms": 263.97290000000066,
+    "totalGas": "1988684"
+  },
+  {
+    "design": "sharded",
+    "stage": "close",
+    "workers": 32,
+    "concurrency": 4,
+    "elapsedMs": 1288.012499999997,
+    "confirmed": 32,
+    "failures": 0,
+    "confirmedPerSecond": 24.84447938199363,
+    "p50Ms": 141.8611000000019,
+    "p95Ms": 233.0807999999961,
+    "totalGas": "5915496"
+  },
+  {
+    "design": "sharded",
+    "stage": "withdraw",
+    "workers": 32,
+    "concurrency": 4,
+    "elapsedMs": 1054.153600000005,
+    "confirmed": 32,
+    "failures": 0,
+    "confirmedPerSecond": 30.35610749704772,
+    "p50Ms": 103.1501000000062,
+    "p95Ms": 191.19980000000214,
+    "totalGas": "3094292"
+  },
+  {
+    "design": "naive",
+    "stage": "open",
+    "workers": 32,
+    "concurrency": 4,
+    "elapsedMs": 1046.417300000001,
+    "confirmed": 32,
+    "failures": 0,
+    "confirmedPerSecond": 30.580534171214456,
+    "p50Ms": 106.90639999999985,
+    "p95Ms": 213.95829999999842,
+    "totalGas": "1988672"
+  },
+  {
+    "design": "naive",
+    "stage": "close",
+    "workers": 32,
+    "concurrency": 4,
+    "elapsedMs": 977.7489999999962,
+    "confirmed": 32,
+    "failures": 0,
+    "confirmedPerSecond": 32.72823597876359,
+    "p50Ms": 111.90230000000156,
+    "p95Ms": 193.35169999999925,
+    "totalGas": "5385048"
+  },
+  {
+    "design": "naive",
+    "stage": "withdraw",
+    "workers": 32,
+    "concurrency": 4,
+    "elapsedMs": 936.8302999999942,
+    "confirmed": 32,
+    "failures": 0,
+    "confirmedPerSecond": 34.15773379661204,
+    "p50Ms": 102.27139999999781,
+    "p95Ms": 195.16730000000098,
+    "totalGas": "2545932"
+  }
+]

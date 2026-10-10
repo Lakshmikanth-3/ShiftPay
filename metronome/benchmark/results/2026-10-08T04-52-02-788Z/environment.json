@@ -1,0 +1,15 @@
+{
+  "chainId": 31337,
+  "rpc": "http://127.0.0.1:18545",
+  "local": true,
+  "workers": 32,
+  "concurrency": 4,
+  "duration": "60",
+  "order": [
+    "sharded",
+    "naive"
+  ],
+  "node": "v22.21.0",
+  "clientVersion": "anvil/v1.5.1",
+  "limitations": "Anvil is sequential. These results validate the harness and accounting, not Monad parallel execution or production throughput."
+}
