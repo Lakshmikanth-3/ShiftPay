@@ -2,7 +2,7 @@ import {generatePrivateKey,privateKeyToAccount} from 'viem/accounts';
 import {existsSync,writeFileSync,readFileSync} from 'node:fs';
 import {randomBytes} from 'node:crypto';
 const privateFile=new URL('../.env.runtime-keys',import.meta.url);
-const publicFile=new URL('../../app/deployment-accounts.json',import.meta.url);
+const publicFile=new URL('../../app/lib/deployment-accounts.json',import.meta.url);
 if(existsSync(privateFile)){
   if(!existsSync(publicFile))throw new Error('Existing keys found without their public address record. Restore the public record; do not regenerate keys.');
   console.log('Existing service wallets preserved:',readFileSync(publicFile,'utf8'));

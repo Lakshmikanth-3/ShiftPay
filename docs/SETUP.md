@@ -26,7 +26,7 @@ Record the actual vault address, employer ID, deployment receipt block and trans
 
 The bridge runs inside the business Vercel project. `sync-bridge.cjs` bundles `bridge/src` into the app, the build applies Prisma migrations to one Neon schema per configured token, and `/api/bridge/*` serves requests in-process. The employee project relays to it with `BRIDGE_ORIGIN` and `BRIDGE_RELAY_SECRET`.
 
-Run `node configure-vercel.cjs` in `app` once to set both projects' variables from the ignored `bridge/.env.runtime-keys` file without printing secrets. After deploying a vault for another token, run `node configure-vercel.cjs ausd <vault> <deployBlock> <employerId>` and redeploy. Check `https://shiftpay-business.vercel.app/api/bridge/health?asset=USDC` before use.
+Run `node scripts/configure-vercel.cjs` in `app` once to set both projects' variables from the ignored `bridge/.env.runtime-keys` file without printing secrets. After deploying a vault for another token, run `node scripts/configure-vercel.cjs ausd <vault> <deployBlock> <employerId>` and redeploy. Check `https://shiftpay-business.vercel.app/api/bridge/health?asset=USDC` before use.
 
 ## Employee registration
 

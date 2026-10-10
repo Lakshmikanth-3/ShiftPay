@@ -40,7 +40,7 @@ Official technical references:
 
 The bridge supports `PAYROLL_EVENT_SOURCE=envio` and `ENVIO_API_TOKEN` in its server environment. Obtain a **HyperSync** token using the free package in [Envio's dashboard](https://envio.dev/app/api-tokens). HyperRPC tokens can have different product access and billing; this implementation uses HyperSync's JSON query API and adds no SDK dependency.
 
-Keep the token in `metronome/bridge/.env` locally and the backend's environment settings when hosted. Do not put it in browser variables, the frontend or source control. For the USDC and AUSD services, select Envio and configure the actual vault address and deployment block for each service separately. The token's rate budget is shared when using it across services.
+Keep the token in `bridge/.env` locally and the backend's environment settings when hosted. Do not put it in browser variables, the frontend or source control. For the USDC and AUSD services, select Envio and configure the actual vault address and deployment block for each service separately. The token's rate budget is shared when using it across services.
 
 The endpoint is the officially listed Monad Testnet service, `https://monad-testnet.hypersync.xyz/query`. Queries select the configured vault and confirmed block range. Pagination uses `next_block`; lag never counts as completed indexing. Invalid responses, wrong-vault events, conflicting/noncanonical block hashes, token errors and rate limits stop updates. There is no automatic provider substitution after selecting Envio. Contract balance reads and transaction submission continue through the Monad RPC because HyperSync is an event-data service.
 
