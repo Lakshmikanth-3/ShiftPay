@@ -14,12 +14,12 @@ Employers fund payroll in USDC or AUSD. Verified shifts accrue wages every secon
 
 | Path | Contents |
 |---|---|
-| [metronome/contracts](metronome/contracts) | `MetronomeVault` (Foundry): funded accrual, withholding escrow, signed withdrawals |
-| [metronome/bridge](metronome/bridge) | Attestation and relay service (TypeScript, Prisma) |
-| [metronome/app](metronome/app) | Next.js business dashboard and employee wallet; hosts the bridge on Vercel |
-| [metronome/docs](metronome/docs) | Architecture, trust model, setup, phases, bounties, submission, demo |
-| [metronome/benchmark](metronome/benchmark) | Shift-change benchmark procedure and local harness results |
+| [contracts](contracts) | `MetronomeVault` (Foundry): funded accrual, withholding escrow, signed withdrawals |
+| [bridge](bridge) | Attestation and relay service (TypeScript, Prisma) |
+| [app](app) | Next.js business dashboard and employee wallet; hosts the bridge on Vercel |
+| [docs](docs) | Architecture, trust model, setup, phases, bounties, submission, demo |
+| [benchmark](benchmark) | Shift-change benchmark procedure and local harness results |
 
-Start with [metronome/README.md](metronome/README.md) for running and testing, and [metronome/docs/PHASES.md](metronome/docs/PHASES.md) for current status.
+Start with [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for running and testing, and [docs/PHASES.md](docs/PHASES.md) for current status.
 
 Built for Monad Metropolis, Track 02 — Consumer Products & Payments. MIT licence.

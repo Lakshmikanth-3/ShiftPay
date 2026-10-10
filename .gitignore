@@ -1,41 +1,30 @@
+# Dependencies, builds and caches
 **/node_modules/
 **/.next/
 **/.next-build/
 **/.next-release/
 **/.next-sponsors/
-**/.env*
-!**/.env.example
-**/browser-profile/
-**/*.log
-**/.vercel/
-data/
 **/out/
 **/cache/
 **/broadcast/
+**/*.log
+
+# Secrets and local accounts
+**/.env*
+!**/.env.example
+**/.vercel/
+.claude/
+
+# Generated during build
 **/vault-abi.mjs
 **/public/icon-192.png
 **/public/icon-512.png
+app/bridge-runtime/
+app/prisma/
 
-# One-off local maintenance scripts, the retired static prototype and account helpers (not part of the app)
-metronome/app/connect-*.cjs
-metronome/app/combine-company-registration.cjs
-metronome/app/polish-release.cjs
-metronome/app/remove-external-wallet.cjs
-metronome/app/rename-shiftpay.cjs
-metronome/app/restructure.cjs
-metronome/app/simplify-company-setup.cjs
-metronome/app/update-setup-check.cjs
-metronome/app/wire-mera.cjs
-metronome/app/vercel-*.cjs
-metronome/app/vercel-products.json
-metronome/app/app.js
-metronome/app/auth.jsx
-metronome/app/build-auth.cjs
-metronome/app/check.cjs
-metronome/app/index.html
-metronome/app/server.cjs
-metronome/app/styles.css
-metronome/app/browser-check.cjs
-metronome/app/connected-browser-check.cjs
-videoscript.md
-metronome/benchmark/results/*/raw.json
+# Local QA output
+data/
+**/browser-profile/
+
+# Benchmark raw JSON duplicates raw.csv and exceeds commit size limits
+benchmark/results/*/raw.json

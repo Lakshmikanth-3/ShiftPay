@@ -29,27 +29,27 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@v1
       - name: Install contract dependencies
         run: npm ci
-        working-directory: metronome/contracts
+        working-directory: contracts
       - name: Contract security, fuzz and invariants
         run: forge test --summary
-        working-directory: metronome/contracts
+        working-directory: contracts
       - name: Install bridge dependencies
         run: npm ci
-        working-directory: metronome/bridge
+        working-directory: bridge
       - name: Generate Prisma client
         run: npm run generate
-        working-directory: metronome/bridge
+        working-directory: bridge
       - name: Backend types and PostgreSQL integration
         run: npm run typecheck && npm test
-        working-directory: metronome/bridge
+        working-directory: bridge
       - name: Install dashboard dependencies
         run: npm ci
-        working-directory: metronome/app
+        working-directory: app
       - name: Wallet and funding tests, production build
         run: npm run check
-        working-directory: metronome/app
+        working-directory: app
       - name: Responsive dashboards and login regression
-        working-directory: metronome/app
+        working-directory: app
         env:
           TARGET_URL: http://127.0.0.1:3000
         run: |
@@ -62,7 +62,7 @@ jobs:
           done
           npm run test:browser
       - name: Selenium checks on the approved live portals
-        working-directory: metronome/app
+        working-directory: app
         run: |
-          python -m pip install -r requirements-test.txt
-          python selenium-test.py
+          python -m pip install -r tests/requirements-test.txt
+          python tests/selenium-test.py
