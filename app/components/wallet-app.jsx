@@ -55,8 +55,9 @@ function useSponsoredGas(w){
 
 function Login(){
   const p=usePayroll();
-  return <div className="m-login"><div className="m-logo">S</div><h1>ShiftPay</h1><p>Your wages, as you earn them. Send AUSD anywhere in seconds.</p>
+  return <div className="m-login"><div className="m-logo">S</div><h1>ShiftPay</h1><p>Your wages, as you earn them. Send money home in seconds.</p>
     <div className="m-card"><PasskeyAccess allowCreate/></div>
+    {p.error&&<p className="m-alert error" role="alert">{p.error}</p>}
     <p className="m-fine">One fingerprint or face scan creates your account. No seed phrase, no app to install, no password. Use the same passkey on any device to get back in.</p></div>;
 }
 
