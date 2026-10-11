@@ -1,0 +1,15 @@
+{
+  "chainId": 10143,
+  "rpc": "https://testnet-rpc.monad.xyz/",
+  "local": false,
+  "workers": 16,
+  "concurrency": 8,
+  "duration": "60",
+  "order": [
+    "sharded",
+    "naive"
+  ],
+  "node": "v22.21.0",
+  "clientVersion": "Monad/0.16.3",
+  "limitations": "Public testnet results depend on RPC limits, block capacity and unrelated traffic. Repeat in alternating order."
+}

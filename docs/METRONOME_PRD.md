@@ -456,7 +456,7 @@ Privy was removed so Mera is the entire account layer.
 - [x] Instant withdrawal, any amount, zero fee
 - [x] Worker PWA with the live ticking balance and one-tap withdraw
 - [x] Employer dashboard: funding, runway alarm, per-worker ledger
-- [ ] **Shift-change burst benchmark:** N simultaneous clock-outs, sharded vs naive — runner built, real-network run pending
+- [x] **Shift-change burst benchmark:** run on Monad testnet (16 workers, 96 transactions, 0 failures); designs equal at this scale, see benchmark/README.md
 - [x] Foundry unit + invariant suite green
 
 ### Should have
