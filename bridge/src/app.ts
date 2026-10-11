@@ -8,6 +8,7 @@ import { handleClockEvent } from './services/clock.js';
 import { correctShift } from './services/corrections.js';
 import { relayWithdrawal, withdrawTypedData } from './services/withdrawals.js';
 import {dashboardRoutes} from './dashboard.js';
+import { requireServed } from './employers.js';
 import { queryPayrollEvents } from './envio.js';
 
 const uint = z.union([z.string().regex(/^\d+$/), z.number().int().nonnegative()]).transform((v) => BigInt(v));
@@ -80,14 +81,15 @@ export function buildApp(ctx: Ctx): FastifyInstance {
     }
   };
 
-  app.get('/config', async () => {
+  app.get<{ Querystring: { employer?: string } }>('/config', async (req) => {
+    const employerId = req.query.employer ? parse(uint, req.query.employer) : ctx.cfg.employerId;
     const token = await ctx.chain.publicClient.readContract({ address: ctx.chain.vault, abi: metronomeVaultAbi, functionName: 'token' });
     const [decimals, symbol, employer] = await Promise.all([
       ctx.chain.publicClient.readContract({ address: token, abi: erc20Abi, functionName: 'decimals' }),
       ctx.chain.publicClient.readContract({ address: token, abi: erc20Abi, functionName: 'symbol' }),
-      ctx.chain.publicClient.readContract({ address: ctx.chain.vault, abi: metronomeVaultAbi, functionName: 'employers', args: [ctx.cfg.employerId] }),
+      requireServed(ctx, employerId),
     ]);
-    return { chainId: ctx.cfg.chainId, vault: ctx.chain.vault, employerId: ctx.cfg.employerId, token, decimals, symbol, admin: employer[0], taxAddress: employer[2] };
+    return { chainId: ctx.cfg.chainId, vault: ctx.chain.vault, employerId, token, decimals, symbol, admin: employer.admin, taxAddress: employer.taxAddress, attestor: ctx.attestor.address };
   });
 
   // Browser clock events require the registered employer wallet, never a browser-held API secret.
@@ -95,9 +97,9 @@ export function buildApp(ctx: Ctx): FastifyInstance {
     const body = parse(z.object({ workerId: uint, type: z.enum(['clock_in', 'clock_out']), nonce: z.string().regex(/^0x[0-9a-fA-F]{64}$/), deadline: uint, signature: z.string().refine(isHex) }), req.body);
     if (body.deadline <= ctx.now() || body.deadline > ctx.now() + 600n) throw new HttpError(422, 'Clock authorization expired or exceeds ten minutes', 'expired');
     const worker = await ctx.chain.readWorker(body.workerId);
-    if (worker.flags === 0 || worker.employerId !== ctx.cfg.employerId) throw new HttpError(403, 'Worker is not registered to this employer', 'wrong_employer');
-    const employer = await ctx.chain.publicClient.readContract({ address: ctx.chain.vault, abi: metronomeVaultAbi, functionName: 'employers', args: [ctx.cfg.employerId] });
-    const valid = await verifyTypedData({ address: employer[0], domain: { name: 'ShiftPayClock', version: '1', chainId: ctx.cfg.chainId, verifyingContract: ctx.chain.vault }, types: { Clock: [{ name: 'workerId', type: 'uint256' }, { name: 'action', type: 'uint8' }, { name: 'nonce', type: 'bytes32' }, { name: 'deadline', type: 'uint64' }] }, primaryType: 'Clock', message: { workerId: body.workerId, action: body.type === 'clock_in' ? 0 : 1, nonce: body.nonce as Hex, deadline: body.deadline }, signature: body.signature as Hex });
+    if (worker.flags === 0) throw new HttpError(403, 'Worker is not registered', 'wrong_employer');
+    const employer = await requireServed(ctx, worker.employerId);
+    const valid = await verifyTypedData({ address: employer.admin, domain: { name: 'ShiftPayClock', version: '1', chainId: ctx.cfg.chainId, verifyingContract: ctx.chain.vault }, types: { Clock: [{ name: 'workerId', type: 'uint256' }, { name: 'action', type: 'uint8' }, { name: 'nonce', type: 'bytes32' }, { name: 'deadline', type: 'uint64' }] }, primaryType: 'Clock', message: { workerId: body.workerId, action: body.type === 'clock_in' ? 0 : 1, nonce: body.nonce as Hex, deadline: body.deadline }, signature: body.signature as Hex });
     if (!valid) throw new HttpError(401, 'Employer wallet signature required', 'bad_signature');
     const result = await handleClockEvent(ctx, { workerId: body.workerId, type: body.type === 'clock_in' ? 'CLOCK_IN' : 'CLOCK_OUT', idempotencyKey: `wallet:${body.nonce}` });
     return reply.status(result.duplicate ? 200 : 202).send(result);
@@ -183,7 +185,7 @@ export function buildApp(ctx: Ctx): FastifyInstance {
       ctx.prisma.shift.findFirst({ where: { workerId: workerId.toString(), status: 'OPEN' } }),
     ]);
     if (worker.flags === 0) throw new HttpError(404, 'unknown worker', 'unknown_worker');
-    if (worker.employerId !== ctx.cfg.employerId) throw new HttpError(403, 'Worker belongs to a different employer', 'wrong_employer');
+    await requireServed(ctx, worker.employerId);
     return {
       workerId,
       worker,
@@ -201,7 +203,8 @@ export function buildApp(ctx: Ctx): FastifyInstance {
   app.get<{ Params: { workerId: string } }>('/workers/:workerId/shifts', async (req) => {
     const workerId = parse(uint, req.params.workerId);
     const worker = await ctx.chain.readWorker(workerId);
-    if (worker.flags === 0 || worker.employerId !== ctx.cfg.employerId) throw new HttpError(403, 'Worker is not registered to this employer', 'wrong_employer');
+    if (worker.flags === 0) throw new HttpError(403, 'Worker is not registered', 'wrong_employer');
+    await requireServed(ctx, worker.employerId);
     const shifts = await ctx.prisma.shift.findMany({
       where: { workerId: workerId.toString() },
       orderBy: { startAt: 'desc' },

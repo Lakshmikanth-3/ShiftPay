@@ -3,12 +3,13 @@ import { metronomeVaultAbi } from '../abi/metronomeVault.js';
 import { types } from '../attestor.js';
 import { shardOf } from '../chain.js';
 import { HttpError, type Ctx } from '../context.js';
+import { requireServed } from '../employers.js';
 
 /** Typed data the worker's wallet signs to authorise a relayed withdrawal. */
 export async function withdrawTypedData(ctx: Ctx, workerId: bigint, amount: bigint) {
   const worker = await ctx.chain.readWorker(workerId);
   if (worker.flags === 0) throw new HttpError(404, 'unknown worker', 'unknown_worker');
-  if (worker.employerId !== ctx.cfg.employerId) throw new HttpError(403, 'Worker belongs to a different employer', 'wrong_employer');
+  await requireServed(ctx, worker.employerId);
   return {
     domain: ctx.attestor.domain,
     types: { Withdraw: types.Withdraw },
@@ -27,7 +28,7 @@ export async function relayWithdrawal(ctx: Ctx, input: WithdrawalInput) {
   const { chain, prisma } = ctx;
   const worker = await chain.readWorker(input.workerId);
   if (worker.flags === 0) throw new HttpError(404, 'unknown worker', 'unknown_worker');
-  if (worker.employerId !== ctx.cfg.employerId) throw new HttpError(403, 'Worker belongs to a different employer', 'wrong_employer');
+  await requireServed(ctx, worker.employerId);
   if (worker.flags !== 1) throw new HttpError(409, 'worker is suspended', 'suspended');
   if (input.amount <= 0n) throw new HttpError(422, 'amount must be positive', 'bad_amount');
   if (input.deadline <= ctx.now()) throw new HttpError(422, 'signature deadline has passed', 'expired');

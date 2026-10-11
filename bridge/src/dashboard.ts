@@ -5,9 +5,10 @@ import {monadTestnet} from 'viem/chains';
 import {metronomeVaultAbi as abi} from './abi/metronomeVault.js';
 import {HttpError,type Ctx} from './context.js';
 import {queryPayrollEvents} from './envio.js';
+import {requireServed,servedEmployer} from './employers.js';
 export const accessTypes={Access:[{name:'workerId',type:'uint256'},{name:'deadline',type:'uint64'},{name:'payloadHash',type:'bytes32'}]} as const;
 const dataSchema=z.object({companyName:z.string().trim().min(1).max(100).optional(),employee:z.object({workerId:z.string().regex(/^[1-9]\d*$/),name:z.string().trim().min(1).max(100),role:z.string().trim().min(1).max(100),department:z.string().trim().min(1).max(100),notes:z.string().max(2000).optional()}).strict().optional()}).strict();
-const requestSchema=z.object({address:z.string().refine(isAddress),workerId:z.string().regex(/^\d+$/),deadline:z.string().regex(/^\d+$/),signature:z.string().refine(isHex),data:dataSchema}).strict();
+const requestSchema=z.object({address:z.string().refine(isAddress),employerId:z.string().regex(/^[1-9]\d*$/).optional(),workerId:z.string().regex(/^\d+$/),deadline:z.string().regex(/^\d+$/),signature:z.string().refine(isHex),data:dataSchema}).strict();
 export function payloadHash(data:unknown){return keccak256(toBytes(JSON.stringify(data)));}
 const wait=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 export function dashboardRoutes(app:FastifyInstance,ctx:Ctx){
@@ -75,9 +76,9 @@ export function dashboardRoutes(app:FastifyInstance,ctx:Ctx){
     return scanLock;
   }
   /** Workers created for this employer on chain, plus registered profiles (each verified on chain before display). */
-  async function roster(){
+  async function roster(employerId:bigint){
     const [created,profiles]=await Promise.all([
-      ctx.prisma.vaultEvent.findMany({where:{eventName:'WorkerCreated',employerId:ctx.cfg.employerId.toString()},select:{workerId:true}}),
+      ctx.prisma.vaultEvent.findMany({where:{eventName:'WorkerCreated',employerId:employerId.toString()},select:{workerId:true}}),
       ctx.prisma.workerProfile.findMany({select:{workerId:true}}),
     ]);
     return [...new Set([...created.map(r=>r.workerId!),...profiles.map(r=>r.workerId)])].sort((a,b)=>Number(BigInt(a)-BigInt(b)));
@@ -91,27 +92,47 @@ export function dashboardRoutes(app:FastifyInstance,ctx:Ctx){
     else results=await Promise.all(calls.map(call=>ctx.chain.publicClient.readContract({...call,blockNumber:block.number!} as any)));
     return workerIds.map((id,index)=>{const [v,earned,claimable,remaining,runway,owedBack]=results.slice(index*6,index*6+6);return {workerId:id,worker:{ratePerHour:v[0],funded:v[1],withdrawn:v[2],netSettled:v[3],taxSettled:v[4],taxEscrowed:v[5],clockInAt:v[6],nonce:v[7],employerId:v[8],maxShiftSeconds:v[9],withholdingBps:v[10],flags:v[11],payoutAddr:v[12],openShiftId:v[13]},earned:{net:earned[0],tax:earned[1],openGross:earned[2]},claimable,remaining,runwaySeconds:runway,owedBack,readAt:block.timestamp,blockNumber:block.number};});
   }
+  /** Every worker id the index or profiles know about, across companies (each is re-checked on chain). */
+  async function allWorkers(){
+    const [created,profiles]=await Promise.all([
+      ctx.prisma.vaultEvent.findMany({where:{eventName:'WorkerCreated'},select:{workerId:true}}),
+      ctx.prisma.workerProfile.findMany({select:{workerId:true}}),
+    ]);
+    return [...new Set([...created.map(r=>r.workerId!),...profiles.map(r=>r.workerId)])].sort((a,b)=>Number(BigInt(b)-BigInt(a)));
+  }
+
+  /** Companies administered by an address and served by this payroll service (newest first). */
+  app.get<{Params:{address:string}}>('/employers/by-admin/:address',async(req)=>{
+    if(!isAddress(req.params.address))throw new HttpError(400,'Invalid address.','bad_request');
+    const count=await ctx.chain.publicClient.readContract({address:ctx.chain.vault,abi,functionName:'employerCount'}) as bigint;
+    const ids:string[]=[],address=req.params.address.toLowerCase();
+    for(let id=count;id>=1n;id--){const e=await servedEmployer(ctx,id);if(e&&e.admin.toLowerCase()===address)ids.push(id.toString());}
+    return {employerIds:ids};
+  });
+
   app.post('/dashboard',async(req)=>{
     const parsed=requestSchema.safeParse(req.body);if(!parsed.success)throw new HttpError(400,'Invalid dashboard authorization.','bad_request');
     const body=parsed.data,deadline=BigInt(body.deadline),workerId=BigInt(body.workerId);
     if(deadline<=ctx.now()||deadline>ctx.now()+600n)throw new HttpError(401,'Dashboard authorization expired. Connect again.','expired');
-    const employer=await ctx.chain.publicClient.readContract({address:ctx.chain.vault,abi,functionName:'employers',args:[ctx.cfg.employerId]});
-    const admin=body.address.toLowerCase()===employer[0].toLowerCase();
-    if(!admin){if(workerId===0n)throw new HttpError(403,'Company account required.','forbidden');const worker=await ctx.chain.readWorker(workerId);if(worker.employerId!==ctx.cfg.employerId||worker.flags===0||worker.payoutAddr.toLowerCase()!==body.address.toLowerCase())throw new HttpError(403,'Registered employee account required.','forbidden');}
+    // The company is named by the request; an employee's request resolves to the company that registered them.
+    let employerId:bigint=body.employerId?BigInt(body.employerId):ctx.cfg.employerId;
+    const employer=await requireServed(ctx,employerId);
+    const admin=body.address.toLowerCase()===employer.admin.toLowerCase();
+    if(!admin){if(workerId===0n)throw new HttpError(403,'Company account required.','forbidden');const worker=await ctx.chain.readWorker(workerId);if(!body.employerId)employerId=worker.employerId;if(worker.employerId!==employerId||!(await servedEmployer(ctx,worker.employerId))||worker.flags===0||worker.payoutAddr.toLowerCase()!==body.address.toLowerCase())throw new HttpError(403,'Registered employee account required.','forbidden');}
     const valid=await verifyTypedData({address:body.address as Address,domain:{name:'MetronomeAccess',version:'1',chainId:ctx.cfg.chainId,verifyingContract:ctx.chain.vault},types:accessTypes,primaryType:'Access',message:{workerId,deadline,payloadHash:payloadHash((req.body as {data:unknown}).data)},signature:body.signature as Hex});if(!valid)throw new HttpError(401,'Registered account signature required.','bad_signature');
     if(Object.keys(body.data).length&&!admin)throw new HttpError(403,'Only the company can edit HR details.','forbidden');
-    if(body.data.employee){const worker=await ctx.chain.readWorker(BigInt(body.data.employee.workerId));if(worker.flags===0||worker.employerId!==ctx.cfg.employerId)throw new HttpError(403,'Register the employee on chain before saving HR details.','wrong_employer');}
-    if(Object.keys(body.data).length){const signatureHash=keccak256(body.signature.toLowerCase() as Hex);await ctx.prisma.$transaction(async tx=>{const consumed=await tx.consumedAuthorization.findUnique({where:{id:signatureHash}});if(consumed)return;await tx.consumedAuthorization.create({data:{id:signatureHash,deadline}});if(body.data.companyName)await tx.companyProfile.upsert({where:{id:ctx.cfg.employerId.toString()},create:{id:ctx.cfg.employerId.toString(),name:body.data.companyName},update:{name:body.data.companyName}});if(body.data.employee){const profile=body.data.employee;await tx.workerProfile.upsert({where:{workerId:profile.workerId},create:profile,update:profile});}});}
+    if(body.data.employee){const worker=await ctx.chain.readWorker(BigInt(body.data.employee.workerId));if(worker.flags===0||worker.employerId!==employerId)throw new HttpError(403,'Register the employee on chain before saving HR details.','wrong_employer');}
+    if(Object.keys(body.data).length){const signatureHash=keccak256(body.signature.toLowerCase() as Hex);await ctx.prisma.$transaction(async tx=>{const consumed=await tx.consumedAuthorization.findUnique({where:{id:signatureHash}});if(consumed)return;await tx.consumedAuthorization.create({data:{id:signatureHash,deadline}});if(body.data.companyName)await tx.companyProfile.upsert({where:{id:employerId.toString()},create:{id:employerId.toString(),name:body.data.companyName},update:{name:body.data.companyName}});if(body.data.employee){const profile=body.data.employee;await tx.workerProfile.upsert({where:{workerId:profile.workerId},create:profile,update:profile});}});}
     const progress=await scan();
-    const ids=await roster(),key=ids.join(',');
+    const ids=await roster(employerId),key=employerId+':'+ids.join(',');
     if(!snapshot||snapshotKey!==key||Date.now()-snapshotAt>5000){
-      if(!snapshotLock)snapshotLock=readSnapshots(ids).then(async value=>{const blockNumber=value[0]?.blockNumber??await ctx.chain.publicClient.getBlockNumber();const contracts=Array.from({length:64},(_,shard)=>({address:ctx.chain.vault,abi,functionName:'withheld' as const,args:[ctx.cfg.employerId,BigInt(shard)] as const}));let amounts:readonly bigint[];if(ctx.cfg.chainId===10143)amounts=await ctx.chain.publicClient.multicall({contracts,allowFailure:false,multicallAddress:monadTestnet.contracts.multicall3.address,blockNumber});else amounts=await Promise.all(contracts.map(call=>ctx.chain.publicClient.readContract({...call,blockNumber})));heldTax=amounts.reduce((sum,amount)=>sum+amount,0n);snapshot=value.filter((w:any)=>w.worker.employerId===ctx.cfg.employerId&&w.worker.flags!==0);snapshotKey=key;snapshotAt=Date.now();return snapshot;}).finally(()=>{snapshotLock=null;});
+      if(!snapshotLock)snapshotLock=readSnapshots(ids).then(async value=>{const blockNumber=value[0]?.blockNumber??await ctx.chain.publicClient.getBlockNumber();const contracts=Array.from({length:64},(_,shard)=>({address:ctx.chain.vault,abi,functionName:'withheld' as const,args:[employerId,BigInt(shard)] as const}));let amounts:readonly bigint[];if(ctx.cfg.chainId===10143)amounts=await ctx.chain.publicClient.multicall({contracts,allowFailure:false,multicallAddress:monadTestnet.contracts.multicall3.address,blockNumber});else amounts=await Promise.all(contracts.map(call=>ctx.chain.publicClient.readContract({...call,blockNumber})));heldTax=amounts.reduce((sum,amount)=>sum+amount,0n);snapshot=value.filter((w:any)=>w.worker.employerId===employerId&&w.worker.flags!==0);snapshotKey=key;snapshotAt=Date.now();return snapshot;}).finally(()=>{snapshotLock=null;});
       await snapshotLock;
     }
     const workers=(snapshot||[]).filter((w:any)=>admin||w.workerId===body.workerId);
     const visible=new Set(workers.map((w:any)=>w.workerId));
     const profiles=await ctx.prisma.workerProfile.findMany({where:{workerId:{in:[...visible] as string[]}}});
-    const company=await ctx.prisma.companyProfile.findUnique({where:{id:ctx.cfg.employerId.toString()}});
+    const company=await ctx.prisma.companyProfile.findUnique({where:{id:employerId.toString()}});
     const events=await ctx.prisma.vaultEvent.findMany({where:{eventName:{in:['Withdrawn','TaxEscrowed','Funded']},workerId:{in:[...visible] as string[]}},orderBy:[{blockNumber:'desc'},{logIndex:'desc'}],take:500});
     const payments=events.map(e=>({id:e.id,workerId:e.workerId,type:e.eventName,amount:e.amount,hash:e.hash,blockNumber:e.blockNumber,status:'CONFIRMED'}));
     return {company,workers:workers.map((w:any)=>({...w,profile:profiles.find(p=>p.workerId===w.workerId)||null})),payments,progress,heldTax:admin?heldTax:undefined,readAt:workers[0]?.readAt??null};
@@ -120,9 +141,9 @@ export function dashboardRoutes(app:FastifyInstance,ctx:Ctx){
   app.get<{Params:{address:string}}>('/workers/by-address/:address',async(req)=>{
     if(!isAddress(req.params.address))throw new HttpError(400,'Invalid address.','bad_request');
     await scan(4000).catch(()=>undefined);
-    const ids=await roster(),address=req.params.address.toLowerCase(),matches:string[]=[];
+    const ids=await allWorkers(),address=req.params.address.toLowerCase(),matches:string[]=[];
     // Active workers only, newest first: a suspended record never shadows a fresh registration.
-    for(const id of ids){const w=await ctx.chain.readWorker(BigInt(id));if(w.employerId===ctx.cfg.employerId&&w.flags===1&&w.payoutAddr.toLowerCase()===address)matches.push(id);}
+    for(const id of ids){const w=await ctx.chain.readWorker(BigInt(id));if(w.flags===1&&w.payoutAddr.toLowerCase()===address&&await servedEmployer(ctx,w.employerId))matches.push(id);}
     return {workerIds:matches.sort((a,b)=>Number(BigInt(b)-BigInt(a)))};
   });
 
@@ -149,7 +170,7 @@ export function dashboardRoutes(app:FastifyInstance,ctx:Ctx){
       return {granted:true,hash,amount:small.toString()};
     }
     const workerId=parsed.data.workerId,w=await ctx.chain.readWorker(BigInt(workerId));
-    if(w.employerId!==ctx.cfg.employerId||w.flags!==1)throw new HttpError(403,'Active registered employee required.','forbidden');
+    if(w.flags!==1||!(await servedEmployer(ctx,w.employerId)))throw new HttpError(403,'Active registered employee required.','forbidden');
     const balance=await ctx.chain.publicClient.getBalance({address:w.payoutAddr});
     if(balance>=floor)return {granted:false,reason:'sufficient'};
     const recent=await ctx.prisma.gasGrant.findFirst({where:{workerId,at:{gt:new Date(Date.now()-24*3600_000)}}});

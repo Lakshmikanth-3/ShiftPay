@@ -2,6 +2,7 @@ import { Prisma, type ClockType } from '@prisma/client';
 import { deriveShiftId, toJsonMessage } from '../attestor.js';
 import { shardOf } from '../chain.js';
 import { HttpError, type Ctx } from '../context.js';
+import { requireServed } from '../employers.js';
 
 export type ClockEventInput = {
   idempotencyKey: string;
@@ -21,9 +22,8 @@ export async function handleClockEvent(ctx: Ctx, ev: ClockEventInput): Promise<C
   if (seen) return { duplicate: true, shiftId: seen.shiftId };
 
   const worker = await chain.readWorker(ev.workerId);
-  if (worker.flags === 0 || worker.employerId !== cfg.employerId) {
-    throw new HttpError(404, 'worker is not registered to this employer on the vault', 'unknown_worker');
-  }
+  if (worker.flags === 0) throw new HttpError(404, 'worker is not registered on the vault', 'unknown_worker');
+  await requireServed(ctx, worker.employerId);
   if (worker.flags & SUSPENDED) throw new HttpError(409, 'worker is suspended', 'suspended');
 
   const now = ctx.now();
@@ -42,7 +42,7 @@ export async function handleClockEvent(ctx: Ctx, ev: ClockEventInput): Promise<C
 
       if (ev.type === 'CLOCK_IN') {
         if (open) throw new HttpError(409, `worker already on shift ${open.id}`, 'already_on_shift');
-        const shiftId = deriveShiftId(cfg.vault, cfg.employerId, ev.workerId, ev.idempotencyKey);
+        const shiftId = deriveShiftId(cfg.vault, worker.employerId, ev.workerId, ev.idempotencyKey);
         const message = { workerId: ev.workerId, shiftId, startAt: at, deadline };
         const signature = await attestor.signOpen(message);
         await tx.shift.create({ data: { id: shiftId.toString(), workerId, status: 'OPEN', startAt: at } });
