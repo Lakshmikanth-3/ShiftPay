@@ -64,13 +64,19 @@ function Login(){
 
 function Wages({w}){
   const p=w.p,[id,setId]=useState('');
-  const key=w.account?'shiftpay:worker:'+w.account.toLowerCase():null;
+  const key=w.account?'shiftpay:worker:'+p.asset+':'+w.account.toLowerCase():null;
   const [finding,setFinding]=useState(false);
   useEffect(()=>{if(!key||!p.cfg||p.selected)return;let saved=null;try{saved=localStorage.getItem(key)}catch{}
     const open=id=>{p.setWorkerId(id);p.choose({preventDefault(){}},id)};
     if(saved){open(saved);return;}
     // Stateless recovery: nothing saved on this device, so find the payroll registered to this passkey's address.
-    setFinding(true);p.api('workers/by-address/'+w.account).then(r=>{if(r.workerIds?.length)open(r.workerIds[0]);}).catch(()=>{}).finally(()=>setFinding(false));
+    // Look in this currency first, then the other one: the employee never has to know which payroll they are on.
+    setFinding(true);p.api('workers/by-address/'+w.account).then(async r=>{
+      if(r.workerIds?.length){open(r.workerIds[0]);return;}
+      const other=p.asset==='AUSD'?'USDC':'AUSD';
+      const res=await fetch('/api/bridge/workers/by-address/'+w.account+'?asset='+other,{cache:'no-store'});const o=res.ok?await res.json():{};
+      if(o.workerIds?.length)p.setAsset(other);
+    }).catch(()=>{}).finally(()=>setFinding(false));
   },[key,p.cfg]);
   useEffect(()=>{if(key&&p.owns&&p.selected)try{localStorage.setItem(key,p.selected)}catch{}},[key,p.owns,p.selected]);
   const dialog=useRef(null);
@@ -78,7 +84,8 @@ function Wages({w}){
   if(finding&&!p.worker)return <section className="m-card"><h3>Finding your payroll…</h3><p className="m-muted">Looking up the employer that registered this account.</p></section>;
   if(!p.worker||!p.owns)return <section className="m-card"><h3>Link your payroll</h3><p className="m-muted">Enter the employee ID your company gave you. Your passkey account must be the payout account they registered.</p>
     <form className="m-row" onSubmit={e=>{e.preventDefault();p.setWorkerId(id);p.choose(e,id)}}><input inputMode="numeric" placeholder="Employee ID" value={id} onChange={e=>setId(e.target.value)} required/><button className="m-primary" disabled={p.loading}>{p.loading?'…':'Link'}</button></form>
-    {p.worker&&!p.owns&&<p className="m-alert error">Employee {p.selected} is registered to {short(p.worker.worker.payoutAddr)}, not this account.</p>}</section>;
+    {p.worker&&!p.owns&&<p className="m-alert error">Employee {p.selected} is registered to {short(p.worker.worker.payoutAddr)}, not this account.</p>}
+    {!p.worker&&/unknown worker|not registered/i.test(p.error||'')&&<p className="m-alert">No payroll found for that ID yet. Ask your employer to add you, then it appears here automatically.</p>}</section>;
   const x=p.worker,on=x.worker.clockInAt!=='0',salaried=isSalaried(x.worker);
   return <section className="m-card wages"><div className="m-row between"><h3>{salaried?'Salary earned':'Earned wages'}</h3><span className={'m-chip'+(on?' live':'')}>{salaried?(on?'● Salary · earning':'Salary paused'):(on?'● On shift':'Off shift')}</span></div>
     <strong className="m-amount">{p.units(x.claimable)}</strong><p className="m-muted">Available to withdraw now · employer funded, no fee{salaried?<> · monthly salary {p.units(BigInt(x.worker.ratePerHour)*BigInt(SALARY_HOURS_PER_MONTH))}, earned every second</>:null}</p>
@@ -225,7 +232,7 @@ export default function WalletApp({section=''}){
   return <div className="m-shell"><div className="m-phone">
     <header className="m-top"><span className="m-logo small">S</span><b>ShiftPay</b><a className="m-pitch" href={pitchUrl} target="_blank" rel="noreferrer">▶ Pitch</a></header>
     <main className="m-main">{!signedIn?<Login/>:React.createElement(screen,{w})}
-      {p.error&&signedIn&&!p.error.includes('pending')&&<p className="m-alert error">{p.error}</p>}
+      {p.error&&signedIn&&!p.error.includes('pending')&&!/unknown worker|not registered/i.test(p.error)&&<p className="m-alert error">{p.error}</p>}
       {p.notice&&signedIn&&<p className="m-alert">{p.notice}</p>}</main>
     {signedIn&&<nav className="m-tabs" aria-label="Employee navigation">{tabs.map(([key,label,icon])=><Link key={key} href={'/employee'+(key?'/'+key:'')} aria-current={section===key?'page':undefined}><i>{icon}</i>{label}</Link>)}</nav>}
   </div></div>;
