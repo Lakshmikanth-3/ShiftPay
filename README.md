@@ -44,6 +44,15 @@ is built for. The money is already theirs; only the payment timing was wrong.
 | Verify work | Start / end verified shift | A signed clock intent goes to the payroll service, whose attestor signs and whose relayer submits |
 | Watch | Overview, payments, tax escrow | Vault events indexed into Postgres; balances read live from the vault |
 
+### Two pay types
+
+| Pay type | How it accrues | Employer action |
+|---|---|---|
+| **Shift pay** | Every second during a verified shift (up to 8 hours) | Start and end each shift |
+| **Monthly salary** | Every second of the month, day and night: monthly ÷ 720 hours | Start the salary month once; end it at month end (or early, paying only the time worked) |
+
+Both use the same vault rules: never more than funded, tax held in escrow, withdraw any time.
+
 ### Employee: a mobile wallet
 
 | Step | What the worker does | What happens underneath |

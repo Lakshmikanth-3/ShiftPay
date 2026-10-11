@@ -63,6 +63,11 @@ comes back.
 | "Private payslips" | Payslips encrypted on the phone with a second key from the same passkey. The server stores only unreadable data. |
 | The website and phone app | **Next.js** apps on **Vercel**. The business site also runs the payroll service and a **Neon Postgres** database for profiles and history. |
 
+### Two ways to be paid
+
+- **Shift pay:** pay grows every second while a verified shift is open.
+- **Monthly salary:** the employer enters a monthly amount; it grows every second of the month (monthly ÷ 720 hours). Leaving mid-month pays exactly the time worked.
+
 ### Why it is safe
 
 - **Priya cannot take more than she earned**, and never more than the business deposited.
