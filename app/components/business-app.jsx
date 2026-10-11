@@ -166,6 +166,9 @@ function Funding({bal,reload}){
 export default function BusinessApp({section=''}){
   const p=usePayroll(),[bal,reload]=useCompanyBalances(),[open,setOpen]=useState(null),[adding,setAdding]=useState(false),requested=useRef('');
   const signedIn=p.authenticated&&p.wallet;
+  // Keep retrying quietly until the dashboard loads; transient network errors are never shown as failures.
+  const [retries,setRetries]=useState(0);
+  useEffect(()=>{if(!p.admin||p.dashboard){setRetries(0);return;}const t=setInterval(()=>{if(!p.busy){setRetries(n=>n+1);p.loadDashboard();}},5000);return()=>clearInterval(t);},[p.admin,!!p.dashboard,p.busy]);
   useEffect(()=>{setAdding(typeof window!=='undefined'&&new URLSearchParams(location.search).has('add'));setOpen(null)},[section]);
   // Load the signed dashboard once per account and currency; the passkey signs without a prompt.
   useEffect(()=>{const key=p.wallet?.address+':'+p.asset+':'+p.employer+':'+p.cfg?.employerId+':'+(p.meraWallet?.session?'s':'');if(p.admin&&!p.dashboard&&!p.busy&&requested.current!==key){requested.current=key;p.loadDashboard();}},[p.admin,p.dashboard,p.asset,p.busy,p.meraWallet,p.cfg?.employerId]);
@@ -179,7 +182,7 @@ export default function BusinessApp({section=''}){
   let body;
   if(!p.cfg)body=<section className="b-card"><h2>{p.asset} payroll not connected</h2><p className="b-muted">{p.error||'Connecting…'}</p><div className="b-actions"><button className="b-small" onClick={p.configure}>Retry</button><Link className="b-small ghost" href="/deploy">Set up {p.asset} payroll</Link></div></section>;
   else if(!p.admin)body=<CompanySetup/>;
-  else if(!p.dashboard)body=<section className="b-card"><h2>Loading payroll…</h2><p className="b-muted">{p.busy?'Reading verified payroll records…':p.dashboardError||p.error||'Payroll records are not loaded.'}</p><button className="b-small" disabled={p.busy} onClick={()=>p.loadDashboard()}>{p.busy?'Loading…':'Load payroll'}</button></section>;
+  else if(!p.dashboard)body=<section className="b-card"><h2>Loading payroll…</h2><p className="b-muted">{retries<6?'Reading your verified payroll records from Monad…':'Still connecting to Monad. This can take a moment when the network is busy.'}</p>{retries>=6&&<button className="b-small" disabled={p.busy} onClick={()=>{setRetries(0);p.loadDashboard()}}>Try again now</button>}</section>;
   else if(open)body=<EmployeeDetail w={workers.find(w=>w.workerId===open.workerId)||open} onClose={()=>setOpen(null)}/>;
   else if(section==='employees')body=<>{adding?<AddEmployee onDone={()=>setAdding(false)}/>:<div className="b-toolbar"><button className="b-primary" onClick={()=>setAdding(true)}>+ Add employee</button></div>}<section className="b-card"><h2>Employees</h2><EmployeeTable workers={workers} onOpen={openWorker}/></section></>;
   else if(section==='shifts')body=<section className="b-card"><h2>Shifts</h2><p className="b-muted">Start and end verified shifts. Each one is signed by your company passkey and settled on Monad.</p><EmployeeTable workers={workers} onOpen={openWorker} actions/></section>;
@@ -193,6 +196,6 @@ export default function BusinessApp({section=''}){
       <PitchLink/><div className="b-account"><span>Company account</span><b className="mono">{short(p.wallet.address)}</b><button className="b-small ghost" onClick={()=>p.logout().catch(()=>{})}>Sign out</button></div></aside>
     <main className="b-main"><header className="b-top"><div><p className="b-eyebrow">{p.dashboard?.company?.name||'Business payroll'}</p><h1>{title}</h1></div>
       <label className="b-currency">Currency<select value={p.asset} disabled={p.busy||!!p.pending} onChange={e=>{requested.current='';p.setEmployer('');p.setAsset(e.target.value)}}><option>USDC</option><option>AUSD</option></select></label></header>
-      {p.error&&p.cfg&&<p className="b-alert error">{p.error}</p>}{p.notice&&<p className="b-alert mono">{p.notice}</p>}
+      {p.error&&p.cfg&&!(p.error.startsWith('The Monad network is busy')&&!p.dashboard)&&<p className="b-alert error">{p.error}</p>}{p.notice&&<p className="b-alert mono">{p.notice}</p>}
       {body}</main></div>;
 }
