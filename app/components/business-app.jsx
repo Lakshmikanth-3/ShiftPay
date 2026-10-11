@@ -17,14 +17,35 @@ const status=w=>w.worker.flags!==1?['Suspended','off']:w.worker.clockInAt!=='0'?
 const gross=w=>BigInt(w.earned.net)+BigInt(w.earned.tax);
 const name=w=>w.profile?.name||'Employee '+w.workerId;
 
+/** A passkey that runs no company yet: find its company, or create one (judges and new businesses self-onboard). */
+function CompanySetup(){
+  const p=usePayroll(),[looking,setLooking]=useState(true),[name,setName]=useState('');
+  // A new company passkey has no network-fee balance yet; request the one-time onboarding fee credit.
+  useEffect(()=>{p.api('gas-grants',{address:p.wallet.address}).catch(()=>{});},[p.wallet.address]);
+  useEffect(()=>{let live=true;setLooking(true);p.api('employers/by-admin/'+p.wallet.address).then(r=>{if(live&&r.employerIds?.length)p.setEmployer(r.employerIds[0]);}).catch(()=>{}).finally(()=>live&&setLooking(false));return()=>{live=false};},[p.wallet.address,p.asset]);
+  if(looking)return <section className="b-card"><h2>Finding your company…</h2><p className="b-muted">Checking which payroll this passkey manages.</p></section>;
+  return <section className="b-card"><h2>Create your company</h2>
+    <p className="b-muted">This passkey does not run a company yet. Create one in one step: your passkey becomes the payroll administrator and the tax account, and ShiftPay verifies your shifts. A small free fee credit covers the network fee.</p>
+    <form className="b-form" onSubmit={e=>{e.preventDefault();p.createCompany(name)}}>
+      <label className="span">Company name<input required maxLength={100} value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Corner Café"/></label>
+      <button className="b-primary span" disabled={p.busy}>{p.busy?'Creating on Monad…':'Create my company'}</button>
+    </form>
+    <p className="b-fine">Tip: switch Currency to AUSD to fund payroll with free test dollars from Agora.</p>
+  </section>;
+}
+
 function SignIn(){
-  const p=usePayroll();
+  const p=usePayroll(),[name,setName]=useState('');
   return <div className="b-signin"><PitchLink className="b-pitch floating"/><div className="b-signin-card">
     <div className="b-logo">S</div><h1>ShiftPay for Business</h1>
     <p>Fund payroll, verify shifts and pay employees as they earn on Monad.</p>
     <button className="b-primary wide" disabled={p.busy} onClick={()=>p.startMera(false)}>{p.busy?'Waiting for passkey…':'Unlock company passkey'}</button>
     {p.error&&<p className="b-alert error">{p.error}</p>}
-    <p className="b-muted">New company? <Link href="/deploy">Create a company passkey and payroll</Link></p>
+    <form className="b-newco" onSubmit={e=>{e.preventDefault();p.startMera(true,name)}}>
+      <p className="b-muted">New here? Create your company's passkey with one face or fingerprint scan.</p>
+      <input required maxLength={100} value={name} onChange={e=>setName(e.target.value)} placeholder="Your name or company" aria-label="Your name or company"/>
+      <button className="b-small ghost" disabled={p.busy||!name.trim()}>Create company passkey</button>
+    </form>
     <p className="b-fine">Secured by a Mera passkey bound to this site. No wallet extension or seed phrase.</p>
     <details className="b-how"><summary>What happens when I unlock?</summary><ol><li>Your device asks for your fingerprint, face or PIN.</li><li>The passkey returns a secret only this site can request, and the browser turns it into your company signing key. The key never leaves this tab and is wiped after 15 minutes.</li><li>ShiftPay checks on Monad that this account is the registered payroll administrator, then loads your verified payroll.</li></ol></details>
   </div></div>;
@@ -138,7 +159,9 @@ export default function BusinessApp({section=''}){
   const signedIn=p.authenticated&&p.wallet;
   useEffect(()=>{setAdding(typeof window!=='undefined'&&new URLSearchParams(location.search).has('add'));setOpen(null)},[section]);
   // Load the signed dashboard once per account and currency; the passkey signs without a prompt.
-  useEffect(()=>{const key=p.wallet?.address+':'+p.asset+':'+(p.meraWallet?.session?'s':'');if(p.admin&&!p.dashboard&&!p.busy&&requested.current!==key){requested.current=key;p.loadDashboard();}},[p.admin,p.dashboard,p.asset,p.busy,p.meraWallet]);
+  useEffect(()=>{const key=p.wallet?.address+':'+p.asset+':'+p.employer+':'+p.cfg?.employerId+':'+(p.meraWallet?.session?'s':'');if(p.admin&&!p.dashboard&&!p.busy&&requested.current!==key){requested.current=key;p.loadDashboard();}},[p.admin,p.dashboard,p.asset,p.busy,p.meraWallet,p.cfg?.employerId]);
+  // Save the name typed when the company was created, once its dashboard is open.
+  useEffect(()=>{if(!p.admin||!p.dashboard||p.dashboard.company?.name||p.busy)return;let name='';try{name=localStorage.getItem('shiftpay:company-name:'+p.wallet.address.toLowerCase())||''}catch{}if(name)p.loadDashboard({companyName:name});},[p.admin,p.dashboard]);
   useEffect(()=>{if(!p.wallet)requested.current='';},[p.wallet]);
   async function openWorker(w){setOpen(w);await p.choose({preventDefault(){}},w.workerId);}
   if(!signedIn)return <SignIn/>;
@@ -146,7 +169,7 @@ export default function BusinessApp({section=''}){
   const title=nav.find(([k])=>k===section)?.[1]||'Overview';
   let body;
   if(!p.cfg)body=<section className="b-card"><h2>{p.asset} payroll not connected</h2><p className="b-muted">{p.error||'Connecting…'}</p><div className="b-actions"><button className="b-small" onClick={p.configure}>Retry</button><Link className="b-small ghost" href="/deploy">Set up {p.asset} payroll</Link></div></section>;
-  else if(!p.admin)body=<section className="b-card"><h2>Not the payroll administrator</h2><p className="b-muted">This passkey account ({short(p.wallet.address)}) is not the registered company account ({short(p.cfg.admin)}).</p></section>;
+  else if(!p.admin)body=<CompanySetup/>;
   else if(!p.dashboard)body=<section className="b-card"><h2>Loading payroll…</h2><p className="b-muted">{p.busy?'Reading verified payroll records…':p.dashboardError||p.error||'Payroll records are not loaded.'}</p><button className="b-small" disabled={p.busy} onClick={()=>p.loadDashboard()}>{p.busy?'Loading…':'Load payroll'}</button></section>;
   else if(open)body=<EmployeeDetail w={workers.find(w=>w.workerId===open.workerId)||open} onClose={()=>setOpen(null)}/>;
   else if(section==='employees')body=<>{adding?<AddEmployee onDone={()=>setAdding(false)}/>:<div className="b-toolbar"><button className="b-primary" onClick={()=>setAdding(true)}>+ Add employee</button></div>}<section className="b-card"><h2>Employees</h2><EmployeeTable workers={workers} onOpen={openWorker}/></section></>;
@@ -160,7 +183,7 @@ export default function BusinessApp({section=''}){
       <nav aria-label="Business navigation">{nav.map(([k,l,i])=><Link key={k} href={'/employer'+(k?'/'+k:'')} aria-current={section===k?'page':undefined}><i>{i}</i>{l}</Link>)}</nav>
       <PitchLink/><div className="b-account"><span>Company account</span><b className="mono">{short(p.wallet.address)}</b><button className="b-small ghost" onClick={()=>p.logout().catch(()=>{})}>Sign out</button></div></aside>
     <main className="b-main"><header className="b-top"><div><p className="b-eyebrow">{p.dashboard?.company?.name||'Business payroll'}</p><h1>{title}</h1></div>
-      <label className="b-currency">Currency<select value={p.asset} disabled={p.busy||!!p.pending} onChange={e=>{requested.current='';p.setAsset(e.target.value)}}><option>USDC</option><option>AUSD</option></select></label></header>
+      <label className="b-currency">Currency<select value={p.asset} disabled={p.busy||!!p.pending} onChange={e=>{requested.current='';p.setEmployer('');p.setAsset(e.target.value)}}><option>USDC</option><option>AUSD</option></select></label></header>
       {p.error&&p.cfg&&<p className="b-alert error">{p.error}</p>}{p.notice&&<p className="b-alert mono">{p.notice}</p>}
       {body}</main></div>;
 }

@@ -33,7 +33,7 @@ export default function Payroll({children}){return <Boundary><Workspace>{childre
 function Workspace({children}){
   const [dashboard,setDashboard]=useState(null),[dashboardError,setDashboardError]=useState('');
   const access=useRef(null),dashboardEpoch=useRef(0),dashboardPolling=useRef(false);
-  const [asset,setAsset]=useState('USDC'),[holdings,setHoldings]=useState(null),[holdingsError,setHoldingsError]=useState('');
+  const [employer,setEmployer]=useState(''),[asset,setAsset]=useState('USDC'),[holdings,setHoldings]=useState(null),[holdingsError,setHoldingsError]=useState('');
   const api=(path,body)=>bridgeApi(path,body,asset);
   const user=null,login=()=>{};
   const [meraWallet,setMeraWallet]=useState(null),meraRef=useRef(null);
@@ -62,7 +62,7 @@ function Workspace({children}){
   async function configure(){
     const epoch=++configEpoch.current;
     try{
-      const [config,health,rpcChain]=await Promise.all([api('config'),api('health'),client.getChainId()]);
+      const [config,health,rpcChain]=await Promise.all([api('config'+(employer?'?employer='+employer:'')),api('health'),client.getChainId()]);
       if(config.chainId!==chain.id || rpcChain!==chain.id)throw new Error('App RPC and payroll service chain IDs differ.');
       if(!health.ok || !health.attestorRegistered)throw new Error('Payroll service failed its readiness check.');
       const token=await client.readContract({address:config.vault,abi,functionName:'token'});
@@ -83,7 +83,8 @@ function Workspace({children}){
     try{
       const [data,records]=await Promise.all([api(`workers/${id}`),api(`workers/${id}/shifts`)]);
       if(run!==generation.current || id!==selection.current)return;
-      if(data.worker.employerId!==cfg.employerId)throw new Error('Worker belongs to a different employer.');
+      // Workers may belong to any company the payroll service serves; follow the worker's company.
+      if(data.worker.employerId!==cfg.employerId&&!admin){setEmployer(String(data.worker.employerId));}
       setWorker(data);setHistory(records.shifts);setFresh(true);setError(current=>current===BUSY?'':current);
     }catch(e){if(run===generation.current){setFresh(false);setError(errorText(e));}throw e;}
   }
@@ -92,7 +93,7 @@ function Workspace({children}){
     const update=()=>setOnline(navigator.onLine);update();window.addEventListener('online',update);window.addEventListener('offline',update);
     return ()=>{window.removeEventListener('online',update);window.removeEventListener('offline',update);};
   },[]);
-  useEffect(()=>{generation.current++;selection.current='';setCfg(null);setSelected('');setWorker(null);setHistory([]);setPending(null);setFresh(false);configure();},[asset]);
+  useEffect(()=>{generation.current++;selection.current='';setCfg(null);setSelected('');setWorker(null);setHistory([]);setPending(null);setFresh(false);configure();},[asset,employer]);
   useEffect(()=>{setHoldings(null);refreshHoldings();},[wallet?.address,authenticated]);
   useEffect(()=>{if(!selected||!cfg)return;const timer=setInterval(async()=>{if(polling.current)return;polling.current=true;try{await refresh();}catch{}finally{polling.current=false;}},2000);return()=>clearInterval(timer);},[selected,cfg]);
   useEffect(()=>{
@@ -128,7 +129,7 @@ function Workspace({children}){
     const epoch=dashboardEpoch.current,block=await client.getBlock(),deadline=block.timestamp+600n;
     const id=admin?'0':selected;if(!id)throw new Error('Open your employee payroll first.');
     const w=await walletClient(),signature=await w.signTypedData({domain:{name:'MetronomeAccess',version:'1',chainId:cfg.chainId,verifyingContract:cfg.vault},types:{Access:[{name:'workerId',type:'uint256'},{name:'deadline',type:'uint64'},{name:'payloadHash',type:'bytes32'}]},primaryType:'Access',message:{workerId:BigInt(id),deadline,payloadHash:keccak256(toBytes(JSON.stringify(data)))}});
-    const proof={address:wallet.address,workerId:id,deadline:deadline.toString(),signature,data};
+    const proof={address:wallet.address,...(admin?{employerId:String(cfg.employerId)}:{}),workerId:id,deadline:deadline.toString(),signature,data};
     const result=await api('dashboard',proof);if(epoch!==dashboardEpoch.current)return;
     setDashboard(result);setDashboardError('');if(Object.keys(data).length===0)access.current=proof;else{access.current=null;setNotice('Profile saved. Open verified dashboard to refresh account access.');}
   }
@@ -187,7 +188,17 @@ function Workspace({children}){
       if(gas){setNotice('Sending 0.1 test MON for the employee network fees…');const gasHash=await w.sendTransaction({to:payout,value:parseEther('0.1')});if((await client.waitForTransactionReceipt({hash:gasHash})).status!=='success')throw new Error('Employee registered and funded, but the network fee transfer failed.');}
       await authorizeDashboard({employee:{workerId,...profile}});setNotice('Employee registered, payroll allocation confirmed, and employee details saved.');}
   });}
+  /** Creates a company in the shared vault with this passkey as admin and tax account, served by ShiftPay's attestor. */
+  async function createCompany(name){await execute(async()=>{
+    if(!cfg?.attestor)throw new Error('Payroll service is not connected.');if(!name?.trim())throw new Error('Enter your company name.');
+    const w=await walletClient();
+    const {request,result}=await client.simulateContract({address:cfg.vault,abi,functionName:'createEmployer',args:[cfg.attestor,wallet.address],account:wallet.address});
+    const hash=await w.writeContract(request);setNotice('Creating your company on Monad…');
+    if((await client.waitForTransactionReceipt({hash})).status!=='success')throw new Error('Company creation failed.');
+    setEmployer(String(result));setNotice('Company created · '+hash);
+    try{localStorage.setItem('shiftpay:company-name:'+wallet.address.toLowerCase(),name.trim());}catch{}
+  });}
   async function choose(event,requestedId=workerId){event.preventDefault();if(!/^\d+$/.test(requestedId)||BigInt(requestedId)===0n){setError('Enter a positive worker ID.');return;}const id=BigInt(requestedId).toString();setWorkerId(id);setLoading(true);setError('');generation.current++;selection.current=id;setSelected(id);setWorker(null);setHistory([]);setFresh(false);try{await refresh(id);}catch{}finally{setLoading(false);}}
   const disabled=busy||!!pending||!fresh||!online;
-  return <PayrollContext.Provider value={{api,client,walletClient,meraWallet,startMera,dashboard,dashboardError,loadDashboard,asset,setAsset,holdings,holdingsError,ready,authenticated,login,logout,user,wallet,wallets,setWalletAddress,cfg,workerId,setWorkerId,selected,worker,history,amount,setAmount,fundAmount,setFundAmount,payout,setPayout,rate,setRate,bps,setBps,busy,error,notice,pending,online,loading,fresh,loginSlow,admin,owns,units,configure,refreshHoldings,withdraw,clock,direct,execute,fund,register,choose,disabled}}>{children}</PayrollContext.Provider>;
+  return <PayrollContext.Provider value={{employer,setEmployer,createCompany,api,client,walletClient,meraWallet,startMera,dashboard,dashboardError,loadDashboard,asset,setAsset,holdings,holdingsError,ready,authenticated,login,logout,user,wallet,wallets,setWalletAddress,cfg,workerId,setWorkerId,selected,worker,history,amount,setAmount,fundAmount,setFundAmount,payout,setPayout,rate,setRate,bps,setBps,busy,error,notice,pending,online,loading,fresh,loginSlow,admin,owns,units,configure,refreshHoldings,withdraw,clock,direct,execute,fund,register,choose,disabled}}>{children}</PayrollContext.Provider>;
 }
