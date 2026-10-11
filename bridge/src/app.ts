@@ -8,6 +8,7 @@ import { handleClockEvent } from './services/clock.js';
 import { correctShift } from './services/corrections.js';
 import { relayWithdrawal, withdrawTypedData } from './services/withdrawals.js';
 import {dashboardRoutes} from './dashboard.js';
+import { queryPayrollEvents } from './envio.js';
 
 const uint = z.union([z.string().regex(/^\d+$/), z.number().int().nonnegative()]).transform((v) => BigInt(v));
 
@@ -115,7 +116,18 @@ export function buildApp(ctx: Ctx): FastifyInstance {
       }),
     ]);
     await ctx.prisma.$queryRaw`SELECT 1`;
+    // Indexer reachability without exposing the token: one small HyperSync query over recent blocks.
+    let indexer: { source: string; ok?: boolean; error?: string } = { source: cfg.eventSource ?? 'rpc' };
+    if (cfg.eventSource === 'envio') {
+      try {
+        const r = await queryPayrollEvents({ chainId: cfg.chainId, token: cfg.envioToken ?? '', vault: chain.vault, fromBlock: block - 100n, toBlock: block });
+        indexer = { source: 'envio-hypersync', ok: true, error: r.nextBlock < block - 100n ? 'lagging' : undefined };
+      } catch (err) {
+        indexer = { source: 'envio-hypersync', ok: false, error: (err as { code?: string }).code ?? 'unavailable' };
+      }
+    }
     return {
+      indexer,
       ok: chainId === cfg.chainId && employer[1] === attestor.address,
       chainId,
       block,

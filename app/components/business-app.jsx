@@ -41,6 +41,12 @@ function useCompanyBalances(){
   return [bal,load];
 }
 
+/** Shows which indexer produced the payment history (Envio HyperSync when configured). */
+function IndexerBadge(){
+  const p=usePayroll(),g=p.dashboard?.progress;if(!g)return null;
+  return <p className="b-alert">{g.source==='envio-hypersync'?'History indexed by Envio HyperSync':'History indexed from Monad RPC'} · block {String(g.indexedBlock)}{g.complete?' · up to date':' · catching up'}</p>;
+}
+
 function Card({label,value,note,tone}){return <article className={'b-stat'+(tone?' '+tone:'')}><span>{label}</span><strong>{value}</strong>{note&&<small>{note}</small>}</article>}
 
 function Totals({workers}){
@@ -136,7 +142,7 @@ export default function BusinessApp({section=''}){
   else if(section==='employees')body=<>{adding?<AddEmployee onDone={()=>setAdding(false)}/>:<div className="b-toolbar"><button className="b-primary" onClick={()=>setAdding(true)}>+ Add employee</button></div>}<section className="b-card"><h2>Employees</h2><EmployeeTable workers={workers} onOpen={openWorker}/></section></>;
   else if(section==='shifts')body=<section className="b-card"><h2>Shifts</h2><p className="b-muted">Start and end verified shifts. Each one is signed by your company passkey and settled on Monad.</p><EmployeeTable workers={workers} onOpen={openWorker} actions/></section>;
   else if(section==='funding')body=<><Funding bal={bal} reload={reload}/><section className="b-card"><h2>Employee allocations</h2><EmployeeTable workers={workers} onOpen={openWorker}/></section></>;
-  else if(section==='payments')body=<div className="b-legacy"><PaymentLedger/></div>;
+  else if(section==='payments')body=<><IndexerBadge/><div className="b-legacy"><PaymentLedger/></div></>;
   else if(section==='settings')body=<><div className="b-legacy"><ProfileEditor/></div><section className="b-card"><h2>Payroll contract</h2><dl className="b-dl"><dt>Vault</dt><dd className="mono">{p.cfg.vault}</dd><dt>Token</dt><dd className="mono">{p.cfg.token}</dd><dt>Tax recipient</dt><dd className="mono">{p.cfg.taxAddress}</dd><dt>Employer ID</dt><dd>{p.cfg.employerId}</dd></dl><Link className="b-small ghost" href="/deploy">Company setup</Link></section></>;
   else body=<><Totals workers={workers}/><div className="b-grid"><section className="b-card"><div className="b-head"><h2>Workforce</h2><Link className="b-small ghost" href="/employer/employees">Manage</Link></div><EmployeeTable workers={workers.slice(0,6)} onOpen={openWorker}/></section><Funding bal={bal} reload={reload}/></div></>;
   return <div className="b-shell">

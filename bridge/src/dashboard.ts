@@ -46,7 +46,8 @@ export function dashboardRoutes(app:FastifyInstance,ctx:Ctx){
       while(next<=target&&Date.now()<end){
         let scannedNext:bigint,logs:any[]=[];
         if(ctx.cfg.eventSource==='envio'){
-          const to=next+9999n>target?target:next+9999n;
+          // HyperSync serves large ranges in one request and reports how far it got (next_block).
+          const to=next+2_000_000n>target?target:next+2_000_000n;
           const result=await queryPayrollEvents({chainId:ctx.cfg.chainId,token:ctx.cfg.envioToken??'',vault:ctx.chain.vault,fromBlock:next,toBlock:to});
           if(result.nextBlock===next)break; // Indexer is behind; never invent progress.
           for(const log of result.logs){const canonical=await ctx.chain.publicClient.getBlock({blockNumber:log.blockNumber!});if(canonical.hash!==log.blockHash)throw new HttpError(503,'Payroll events are awaiting canonical chain confirmation.','envio_reorg');}
@@ -69,7 +70,7 @@ export function dashboardRoutes(app:FastifyInstance,ctx:Ctx){
         ]);
         next=scannedNext;
       }
-      return {complete:next>target,indexedBlock:next-1n,targetBlock:target};
+      return {complete:next>target,indexedBlock:next-1n,targetBlock:target,source:ctx.cfg.eventSource==='envio'?'envio-hypersync':'rpc'};
     })().finally(()=>{scanLock=null;});
     return scanLock;
   }
