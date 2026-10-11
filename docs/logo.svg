@@ -1,7 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200">
-  <rect width="1200" height="1200" fill="#1f3a2c"/>
-  <rect x="400" y="250" width="400" height="400" rx="96" fill="#cfef93"/>
-  <text x="600" y="545" text-anchor="middle" font-family="Arial Black, Arial, Helvetica, sans-serif" font-weight="900" font-size="300" fill="#1f3a2c">S</text>
-  <text x="600" y="830" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="150" fill="#f3f4ee" letter-spacing="2">ShiftPay</text>
-  <text x="600" y="935" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="52" fill="#cfef93" letter-spacing="4">PAID EVERY SECOND YOU WORK</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="726" height="357" viewBox="0 0 726 357">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7a5cff"/>
+      <stop offset="1" stop-color="#4226b2"/>
+    </linearGradient>
+  </defs>
+  <rect width="726" height="357" fill="#0e0b1a"/>
+  <rect x="58" y="96" width="184" height="182" rx="38" fill="url(#tile)"/>
+  <circle cx="150" cy="187" r="54" fill="none" stroke="#9b85ff" stroke-opacity="0.55" stroke-width="9"/>
+  <path d="M150 133 A54 54 0 1 1 101 209" fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round"/>
+  <path d="M124 208 L145 186 L160 199 L182 174" fill="none" stroke="#b8ff5c" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M168 166 L190 162 L187 185 Z" fill="#b8ff5c" stroke="#b8ff5c" stroke-width="5" stroke-linejoin="round"/>
+  <text x="282" y="196" font-family="Verdana, DejaVu Sans, Arial, sans-serif" font-weight="700" font-size="78" fill="#ffffff">Shift<tspan fill="#b8ff5c">Pay</tspan></text>
+  <text x="284" y="238" font-family="Verdana, DejaVu Sans, Arial, sans-serif" font-size="23" fill="#9c90ec">Paid by the second.</text>
 </svg>
