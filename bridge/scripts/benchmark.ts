@@ -70,7 +70,9 @@ async function run(vault:Address,design:string){
       for(let i=lane;i<jobs.length;i+=concurrency){
         const at=performance.now(),submittedAt=new Date().toISOString();let hash:Hex|undefined;
         try{
-          hash=await relay.writeContract({address:vault,abi,functionName:jobs[i].functionName,args:jobs[i].args,gas:800000n} as never);
+          // Monad charges the gas limit, so use the estimate plus a margin rather than a fixed ceiling.
+          const estimate=await client.estimateContractGas({address:vault,abi,functionName:jobs[i].functionName,args:jobs[i].args,account:relay.account} as never);
+          hash=await relay.writeContract({address:vault,abi,functionName:jobs[i].functionName,args:jobs[i].args,gas:estimate*12n/10n} as never);
           const r=await client.waitForTransactionReceipt({hash,timeout:120000,pollingInterval:100});
           raw.push({design,stage:stageName,workerId:i+1,hash,submittedAt,latencyMs:performance.now()-at,gasUsed:r.gasUsed.toString(),block:r.blockNumber.toString(),status:r.status});
         }catch(e){raw.push({design,stage:stageName,workerId:i+1,hash,submittedAt,latencyMs:performance.now()-at,status:'error',error:String(e)});}

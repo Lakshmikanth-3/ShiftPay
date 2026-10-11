@@ -2,7 +2,7 @@ import 'dotenv/config';
 import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {join} from 'node:path';
-import {createPublicClient,createWalletClient,defineChain,http,erc20Abi,isAddress,type Address,type Hex,type Abi} from 'viem';
+import {createPublicClient,createWalletClient,defineChain,http,erc20Abi,isAddress,parseAbi,parseEther,type Address,type Hex,type Abi} from 'viem';
 import {privateKeyToAccount} from 'viem/accounts';
 const root=fileURLToPath(new URL('../../',import.meta.url));
 const count=Number(process.env.BENCH_WORKERS || 32),key=process.env.BENCH_ADMIN_KEY;
@@ -16,6 +16,17 @@ const signer=privateKeyToAccount(process.env.ATTESTOR_PRIVATE_KEY as Hex),tax=pr
 if(!isAddress(token)||!isAddress(tax)||await client.getChainId()!==10143)throw new Error('Set a valid AUSD_ADDRESS/TAX_ADDRESS and Monad testnet RPC');
 if(await client.readContract({address:token,abi:erc20Abi,functionName:'decimals'})!==6)throw new Error('Benchmark requires 6-decimal token units');
 const total=BigInt(count)*240_000_000n;
+// Self-contained setup: test AUSD from Agora's public faucet, and gas for each benchmark relayer lane from the admin.
+const agoraFaucet='0xd236c18D274E54FAccC3dd9DDA4b27965a73ee6C' as Address;
+if(await client.readContract({address:token,abi:erc20Abi,functionName:'balanceOf',args:[admin.account.address]})<2n*total){
+  const {request}=await client.simulateContract({address:agoraFaucet,abi:parseAbi(['function requestFunds(address)']),functionName:'requestFunds',args:[admin.account.address],account:admin.account});
+  const r=await client.waitForTransactionReceipt({hash:await admin.writeContract(request)});if(r.status!=='success')throw new Error('Agora faucet request failed');
+}
+const relayGas=parseEther(process.env.BENCH_RELAY_MON || '0.3');
+for(const key of (process.env.RELAYER_PRIVATE_KEYS||'').split(',').filter(Boolean)){
+  const relay=privateKeyToAccount(key.trim() as Hex);
+  if(await client.getBalance({address:relay.address})<relayGas/2n){const r=await client.waitForTransactionReceipt({hash:await admin.sendTransaction({to:relay.address,value:relayGas})});if(r.status!=='success')throw new Error('Relayer funding failed');}
+}
 if(await client.readContract({address:token,abi:erc20Abi,functionName:'balanceOf',args:[admin.account.address]})<2n*total)throw new Error('Benchmark admin needs enough test tokens to fund both designs');
 const artifact=(file:string,name:string)=>JSON.parse(readFileSync(join(root,'contracts/out',file,name+'.json'),'utf8'));
 const records:object[]=[];
@@ -31,4 +42,7 @@ try{
     await write(token,erc20Abi,'approve',[vault,total]);await write(vault,art.abi,'fundWorkers',[1n,accounts.map((_,i)=>BigInt(i+1)),accounts.map(()=>240_000_000n)]);
     console.log('Prepared benchmark-only vault',design,vault);
   }
+  const vaults=Object.fromEntries((records as {design:string;vault:string}[]).map(r=>[r.design,r.vault]));
+  console.log(`BENCH_NAIVE_VAULT=${vaults.NaiveVault}
+BENCH_SHARDED_VAULT=${vaults.MetronomeVault}`);
 }finally{writeFileSync(join(output,'deployments.json'),JSON.stringify(records,null,2));console.log('Fixture deployment record:',output);}

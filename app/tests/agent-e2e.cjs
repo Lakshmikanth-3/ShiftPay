@@ -105,6 +105,14 @@ async function main(){
     await step('business: company setup page loads',async()=>{await b.goto(BUSINESS+'/deploy');await b.waitFor(`document.body.innerText.includes('Company registration')`,60000,'setup');await b.shot('business-setup');});
     for(const w of [390,1366]){await step(`business: no sideways scroll at ${w}px`,async()=>{await b.s('Emulation.setDeviceMetricsOverride',{width:w,height:900,deviceScaleFactor:1,mobile:w<600});await b.goto(BUSINESS+'/employer');await b.waitFor(`document.body.innerText.includes('Unlock company passkey')`);const [sw,cw]=await b.eval(`[document.documentElement.scrollWidth,document.documentElement.clientWidth]`);if(sw>cw)throw new Error(`${sw}>${cw}`);});}
     record('business: no uncaught page errors',b.errors.length===0,b.errors.slice(0,3).join(' | '));
+    // ---------- Business self-serve: a judge creates their own company with a new passkey ----------
+    const j=await openPage(cdp,BUSINESS+'/employer',{width:1366,height:900,mobile:false});current=j;
+    await step('business: judge creates a company passkey',async()=>{await j.waitFor(`document.body.innerText.includes('Create company passkey')`,60000,'sign-in');await addAuthenticator(j);
+      await j.fill('.b-newco input','Agent Café');await j.click('Create company passkey');await j.waitFor(`document.body.innerText.includes('Create your company')||document.body.innerText.includes('Overview')`,90000,'setup');});
+    await step('business: judge creates a company on chain (fee credit sponsored)',async()=>{await pause(8000);await j.fill('.b-form input','Agent Café');await j.click('Create my company');
+      await j.waitFor(`document.body.innerText.includes('Company created')`,120000,'company');const h=await j.eval(`(document.body.innerText.match(/Company created · (0x[0-9a-f]{64})/)||[])[1]||''`);if(!h||!await receiptOk(h))throw new Error('no receipt '+h);txs.push({step:'create-company',hash:h});return h;});
+    await step('business: new company dashboard opens',async()=>{await j.waitFor(`document.body.innerText.includes('Funded payroll')||document.body.innerText.includes('No employees yet')`,90000,'dashboard');await j.shot('business-new-company');});
+    record('business: no uncaught page errors (self-serve)',j.errors.length===0,j.errors.slice(0,3).join(' | '));
   }finally{
     cdp?.close();chrome.kill();
     const failed=results.filter(r=>!r.ok).length;
