@@ -70,7 +70,11 @@ async function main(){
     const e=await openPage(cdp,EMPLOYEE+'/employee');current=e;
     let auth,address;
     await step('employee: app loads to passkey sign-in',async()=>{await e.waitFor(`document.body.innerText.includes('Create payroll passkey')`,60000,'sign-in');auth=await addAuthenticator(e);});
-    await step('employee: one-prompt passkey onboarding (Mera PRF)',async()=>{const t0=Date.now();await e.fill('.passkey-access input','Agent Tester');await e.click('Create payroll passkey');await e.waitFor(`document.body.innerText.includes('Digital dollars')`,60000,'home');return `${((Date.now()-t0)/1000).toFixed(1)}s`;});
+    await step('employee: one-prompt passkey onboarding (Mera PRF)',async()=>{
+      // The headless virtual authenticator occasionally never answers the first ceremony; retry once on a fresh load.
+      for(let attempt=1;attempt<=2;attempt++){const t0=Date.now();await e.fill('.passkey-access input','Agent Tester');await e.click('Create payroll passkey');
+        try{await e.waitFor(`document.body.innerText.includes('Digital dollars')`,25000,'home');return `${((Date.now()-t0)/1000).toFixed(1)}s${attempt>1?' (retry)':''}`;}
+        catch(err){if(attempt===2)throw err;await e.goto(EMPLOYEE+'/employee');await e.waitFor(`document.body.innerText.includes('Create payroll passkey')`,60000,'sign-in');}}});
     await step('employee: no crypto wording on home',async()=>{const t=await e.text();for(const bad of [' MON','0x','Testnet','Wallet balance','AUSD','CTK'])if(t.includes(bad))throw new Error('found '+bad);});
     await step('employee: receive shows address and QR',async()=>{await e.click('Receive');await e.waitFor(`document.querySelector('.m-qr')`,30000,'qr');
       address=await e.eval(`document.querySelector('.m-mono')?.textContent.trim()||''`);if(!/^0x[0-9a-fA-F]{40}$/.test(address))throw new Error('no address');return address;});

@@ -11,8 +11,9 @@ const logSchema=z.object({
   block_number:number,block_hash:hash,transaction_hash:hash,
   transaction_index:number,log_index:number,
   data:z.string().regex(/^0x(?:[0-9a-fA-F]{2})*$/),
-  topic0:hash,topic1:hash.nullable(),topic2:hash.nullable(),topic3:hash.nullable(),
-});
+  // HyperSync omits absent topics instead of sending null.
+  topic0:hash,topic1:hash.nullish().transform(v=>v??null),topic2:hash.nullish().transform(v=>v??null),topic3:hash.nullish().transform(v=>v??null),
+}).passthrough();
 // HyperSync's JSON API returns `data` as a list of batches, each with its own logs; a single batch object is also accepted.
 const batch=z.object({logs:z.array(logSchema).optional().default([])}).passthrough();
 const responseSchema=z.object({next_block:number,data:z.union([z.array(batch),batch])}).passthrough();
