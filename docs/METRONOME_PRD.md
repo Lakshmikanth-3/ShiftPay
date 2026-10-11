@@ -10,37 +10,114 @@
 
 ---
 
-## Current status — 10 Oct 2026
+## Part A: ShiftPay explained simply
 
-**Live:** business website https://shiftpay-business.vercel.app · employee mobile app https://shiftpay-employee.vercel.app (the old shiftpay-monad-payroll URL is deleted).
+Read this part first. It needs no technical knowledge.
+
+### The story in one minute
+
+Priya works evening shifts at a café. She finishes a shift on the 2nd of the month, but her pay arrives on the 15th.
+On the 5th her rent is due, so she borrows money and pays a fee to borrow her *own* wages.
+
+ShiftPay fixes the timing. The café puts payroll money into a safe digital account first. While Priya works, her
+pay grows on her phone every second. Whenever she needs money she taps **Withdraw**, and the money she has already
+earned is hers within seconds. No loan, no fee. She can also send part of it to her family in another country,
+and it arrives instantly.
+
+### Who uses it
+
+| Person | Uses | What they do |
+|---|---|---|
+| **The business** (the café) | A website: shiftpay-business.vercel.app | Puts payroll money in, adds employees, starts and ends shifts, sees who earned what |
+| **The employee** (Priya) | A phone app: shiftpay-employee.vercel.app | Watches her pay grow, withdraws it, sends money home, keeps private payslips |
+
+### The six steps of a working day
+
+1. **The business adds money.** It moves dollars into the payroll vault and sets aside an amount for Priya.
+2. **The business starts Priya's shift.** One click on the website.
+3. **Priya's pay grows every second.** Her phone shows the number going up. It can never go above the money the
+   business set aside, so the business can never owe more than it put in.
+4. **Tax is set aside automatically.** A share the business chose (for example 10%) is held separately, so Priya
+   only ever sees money that is really hers to take.
+5. **Priya taps Withdraw.** The money moves to her account in about a second. The business pays the small
+   network fee; Priya pays nothing.
+6. **Priya sends money home or cashes out.** She can send dollars to anyone, or convert them to local currency
+   instantly at a fixed price with no fee.
+
+### How someone signs in (no passwords, no crypto wallet)
+
+Both apps use a **passkey**: the same fingerprint, face or PIN you use to unlock your phone. The first time,
+one scan creates the account. Later, one scan unlocks it. There is no password to forget, no 12-word recovery
+phrase and no wallet app to install. Lose your phone? Sign in on a new one with the same passkey and everything
+comes back.
+
+### What is happening underneath (the parts users never see)
+
+| Plain words | What it really is |
+|---|---|
+| "Safe digital account" for payroll | The **MetronomeVault** smart contract on the **Monad** blockchain. It holds the money and enforces the rules: pay only verified shifts, never more than deposited, tax kept aside. |
+| "Dollars" | **USDC** and **AUSD**: digital dollars that stay worth one US dollar. AUSD is made by **Agora**. |
+| The passkey account | **Mera** turns the passkey into a private key inside the browser. The key is never stored or sent anywhere and is wiped after 15 minutes. |
+| "Instant send home" and "cash out" | **Agora Instant Settlement**: a fixed-price exchange contract that settles in the same transaction. |
+| "The business pays the fee" | A ShiftPay **relayer** account, funded by the business, submits the employee's signed withdrawal and pays the network fee. New accounts also get a small free fee credit. |
+| "Private payslips" | Payslips encrypted on the phone with a second key from the same passkey. The server stores only unreadable data. |
+| The website and phone app | **Next.js** apps on **Vercel**. The business site also runs the payroll service and a **Neon Postgres** database for profiles and history. |
+
+### Why it is safe
+
+- **Priya cannot take more than she earned**, and never more than the business deposited.
+- **The business cannot take back wages Priya already earned.** It can only take back unused money.
+- **Nobody can redirect the tax money.** Its destination is fixed when the business is created.
+- **The fee payer cannot steal or change a withdrawal.** It can only deliver what Priya signed.
+- Every payment is recorded publicly, so either side can check it.
+
+What ShiftPay cannot prove: that the hours were really worked. That is still the employer's word, the same as
+payroll today, but now every shift is signed and recorded.
+
+### Why Monad
+
+At the end of a shift, many workers stop at once. Monad processes many transactions in parallel, with blocks
+about every second and very low fees, so paying hundreds of people at the same moment is fast and cheap. The vault
+spreads workers across 64 separate compartments so their payments do not get in each other's way.
+
+---
+
+## Part B: Current status, 11 Oct 2026
+
+**Live:** business website https://shiftpay-business.vercel.app · employee phone app https://shiftpay-employee.vercel.app ·
+code https://github.com/Lakshmikanth-3/ShiftPay
 
 | Phase | Status | Evidence |
 |---|---|---|
-| 1. Funded payroll safety (contract) | Done | 36 unit/fuzz tests + 5 invariants; funded ceiling, pause/resume, withholding escrow |
-| 2. Dashboards | Done, live | Business dashboard (sidebar, add employee, shifts, funding, payments); employee mobile wallet (Home, Send, Receive, Cash out, History, Profile); Mera passkey sign-in on both, no wallet pop-ups |
-| 3. Hosting | Done, live | Payroll bridge runs inside the business Vercel project on Neon Postgres (Render dropped); employee site relays to it; vault events indexed into Postgres because Monad RPC limits `eth_getLogs` to 100 blocks |
-| 4. Real testnet acceptance | In progress | USDC vault `0xA1C794EA48A1D86294848D28E85c76328070DB24` (block 69456787, employer 1, admin = Mera company passkey `0x430f…7487`, 20 USDC); USDC relayer funded (4.05 MON); no employee registered yet; AUSD vault not deployed |
-| 5. Sponsor proof, benchmark, submission | Pending | Agora features built against Agora's published testnet contracts (faucet, CTK/AUSD Instant Settlement pair, whitelister); no on-chain proof transactions yet; benchmark only local |
+| 1. Safe payroll contract | Done | 36 unit and fuzz tests, 5 invariants (solvency, conservation, no unbacked claims, monotonic totals, all earnings funded) |
+| 2. Business website and employee app | Done, live | Passkey-only accounts (Privy removed), plain dollar wording, mobile layout, pitch deck button |
+| 3. Hosting | Done, live | Payroll service inside the business Vercel project on Neon Postgres; employee app relays to it; public RPC fallbacks and caching for speed |
+| 4. Real testnet run | In progress | USDC vault `0xA1C794EA48A1D86294848D28E85c76328070DB24` (block 69456787, employer 1); employee 1 registered; funding fix deployed; full payroll cycle with the owner's passkey still to run; AUSD payroll vault not deployed |
+| 5. Sponsor proof, user testing, videos, submission | In progress | Agora send-abroad, direct send and cash-out confirmed on chain by the automated agent; user tests and videos pending |
 
-**Tests:** app 31/31 (includes 6 live read-only Agora checks); bridge typecheck + 11 unit tests; `npm run test:live` 9 passed, 1 waiting for a registered employee.
+**Automated proof:** `npm run test:agent` drives both live sites with a virtual passkey and passed 22/22 checks,
+including real Monad transactions: send abroad via Agora Instant Settlement `0x044db4ba…5a67bdf56`, direct send
+`0x4f0590c9…27484cb1`, cash out `0xf36f4f3b…a026628a`. App unit tests: 38/38.
+
+**Bounties entered on the portal:** Agora Cross-Border Payments, Best Mera-Powered UX, Mera: One Passkey Many Keys.
+Not eligible: Best Community Team (campus not on the onboarded list). Envio: implemented, waiting for the API token.
 
 ### Remaining work, in order
-1. Register employee 1 (employee passkey address from the mobile app's Receive screen) with a USDC allocation and 0.1 MON for fees.
-2. Run one real USDC cycle: start shift → end shift → employee withdraw (relayer-paid) → confirm payments ledger; run `WORKER_ID=1 npm run test:live`.
-3. Agora proof from the employee app: Get AUSD (faucet) → Send AUSD to another address → Cash out via Instant Settlement; record the tx hashes.
-4. Fund AUSD relayer `0x2FcE83C7Ea6708e831F9D5bD9F12A8154587CfAD` with MON, deploy the AUSD vault from `/deploy`, run `node configure-vercel.cjs ausd <vault> <block> <employerId>`, redeploy, repeat the payroll cycle in AUSD.
-5. Exhaustion and top-up check with real allocations.
-6. Real-network shift-change benchmark with raw results.
-7. Demo video (≤ 3 min), README tx evidence, confirm the submission form fields and bounty rules, commit and push.
+
+1. Owner: suspend employee 1, register employee 2 for the phone account, fund it, run a shift, withdraw.
+2. Owner: set the Envio API token in Vercel; then switch indexing to HyperSync and add the Envio bounty.
+3. Owner: make the GitHub repository public, or invite metropolis@hackathon.monad.xyz.
+4. Owner: five-person user test ([USER_TESTING.md](USER_TESTING.md)).
+5. Deploy the AUSD payroll vault and repeat the cycle in AUSD.
+6. Record the technical demo (≤3 min) and pitch (≤2 min) videos; add the logo; submit.
 
 ### Known limits
-- The employee "mobile app" is an installable PWA, not a native store app.
-- Instant Settlement on testnet only supports AUSD → CTK (the reverse direction has no liquidity).
-- Withholding is a flat employer-chosen rate held in escrow; no statutory tax calculation or filing.
-- Shift times are attested by the employer; the relayer and bridge are operated by the employer.
-- No revenue model is implemented; workers pay no fees.
 
----
+- The employee app is an installable web app (works on any phone), not an app-store app.
+- On testnet, Agora's pair settles AUSD to CTK only; CTK stands in for local currency.
+- Withholding is a flat rate chosen by the employer and held in escrow; no tax calculation or filing.
+- Shift times are recorded by the employer; the fee payer and payroll service are run by the employer.
+- No revenue model is implemented yet; workers pay no fees.
 
 ## 1. The leak, quantified
 
@@ -130,7 +207,7 @@ So the claim to make:
                                        └─────────┬──────────┘
 ┌──────────────┐    withdraw any time            │
 │   Worker     │ ◄──────────────────────────────┘
-│ (Privy login)│
+│ (Mera passkey)│
 └──────────────┘
 ```
 
@@ -341,7 +418,7 @@ A connector that reads shift events from the employer's timekeeping system and s
 
 ### 8.2 Worker app
 
-- Privy email or phone login, embedded wallet, no seed phrase
+- Mera passkey sign-in (face, fingerprint or PIN), no seed phrase, no extension
 - A number that ticks upward in real time, driven by the `claimable` view
 - One button: **Take it now**
 - Shift history with the signed attestation behind each line
@@ -351,20 +428,21 @@ The ticking number is the entire emotional product. Build it first and make it b
 
 ---
 
-## 9. Tech stack
+## 9. Tech stack (as built)
 
 | Layer | Choice |
 |---|---|
-| Contracts | Solidity 0.8.24+, Foundry |
-| Chain | Monad — verify chain ID and RPC from current docs |
-| Auth / wallet | **Privy** embedded wallets |
-| Frontend | Next.js, Tailwind, shadcn/ui, Framer Motion |
-| Attestation bridge | Node/Fastify, EIP-712 via viem |
-| Indexer | Postgres + Prisma |
+| Contracts | Solidity, Foundry, OpenZeppelin (SafeERC20, EIP-712, Clones) |
+| Chain | Monad testnet, chain id 10143; public RPC with fallbacks (monadinfra, Ankr, dRPC) |
+| Accounts | **Mera** passkeys (`@category-labs/mera`): PRF-derived keys, no seed phrase, no extension |
+| Frontend | Next.js 16 (App Router), React 19, viem, plain CSS |
+| Payroll service | Fastify app bundled into the business Next.js project, served at `/api/bridge/*` on Vercel |
+| Database | Neon Postgres via the Vercel Marketplace, Prisma, one schema per token |
+| Settlement | USDC and Agora AUSD; Agora Instant Settlement pair for send-abroad and cash-out |
+| Indexing | Vault events stored in Postgres with a persisted cursor; Envio HyperSync source ready |
 
-> **Verify the live sponsor list behind login at `hackathon.monad.xyz` before writing integration code.** Research showed Privy, MetaMask, Alchemy, Chainlink, Nansen, Agora/AUSD, Kuru, Alibaba Cloud (Qwen) and Kimi. Bounties score **40% on adherence to published requirements**.
-
-**Bounty focus: Privy** (the worker never sees a wallet) and **Agora/AUSD** (settlement unit). Skip the rest.
+Bounty focus: **Agora cross-border payments**, **Best Mera-Powered UX** and **Mera: One Passkey, Many Keys**.
+Privy was removed so Mera is the entire account layer.
 
 ---
 
@@ -381,7 +459,7 @@ The ticking number is the entire emotional product. Build it first and make it b
 - [x] Foundry unit + invariant suite green
 
 ### Should have
-- [x] Privy login and sponsored gas
+- [x] Passkey login (Mera) and employer-sponsored gas
 - [ ] Withholding remittance flow — `remitWithholding` in the contract and tested; no dashboard button yet
 - [ ] Over-estimate recovery demo
 - [ ] Clock-in/out PWA for workers — employer starts/ends verified shifts from the business dashboard instead
@@ -542,20 +620,19 @@ Cut order: CSV import, then the bridge, then withholding remittance. **Never cut
 ## 17. Repository
 
 ```text
-metronome/
-├── contracts/
-│   ├── src/{MetronomeVault,NaiveVault}.sol
-│   │   └── libs/{Accrual,Shift,Shards}.sol
-│   ├── test/            # unit + invariant
-│   └── script/Deploy.s.sol
-├── bench/               # shift-burst harness + chart
-├── app/                 # worker PWA + employer dashboard
-├── bridge/              # attestation signer
-├── docs/{architecture,parallelism,trust-model}.md
-└── README.md
+ShiftPay/
+├── contracts/   MetronomeVault, ShardVault, tests and invariants (Foundry)
+├── bridge/      payroll service: attestor, relayer, indexer, gas grants, Prisma schema
+├── app/
+│   ├── app/         routes: /employer, /employee, /deploy, /api/bridge
+│   ├── components/  business-app, wallet-app, deployment, payroll state
+│   ├── lib/         agora, mera, private-payslips, rpc, funding, tokens, ABI
+│   ├── styles/      CSS per portal
+│   ├── scripts/     build helpers and configure-vercel
+│   └── tests/       unit tests, live checks, automated passkey agent
+├── benchmark/   shift-change benchmark procedure and local results
+└── docs/        this PRD, architecture, trust model, use case, user testing, judge access
 ```
-
-README opens with the $520-for-$375 line, a GIF of the ticking balance, the deployed address, and a one-command benchmark rerun.
 
 ---
 
@@ -567,7 +644,7 @@ README opens with the $520-for-$375 line, a GIF of the ticking balance, the depl
 - [ ] Benchmark reproducible in one command
 - [ ] Demo video ≤ 3 minutes
 - [x] Track 02 — Consumer Products & Payments
-- [ ] Privy and Agora bounty requirements checked off line by line — features built; on-chain proof pending
+- [x] Agora and Mera bounty requirements mapped line by line in [BOUNTIES.md](BOUNTIES.md); Agora transfers confirmed on chain by the automated agent
 - [x] Agora: mobile app, Mera passkey onboarding, AUSD send, Instant Settlement integration (built)
 - [ ] Agora: real transaction evidence recorded
 
