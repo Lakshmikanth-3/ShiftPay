@@ -11,7 +11,8 @@ const RECIPIENT='0x4e3f8497F732326CFB8cC4d17Ad0688b74582776';
 const RPC='https://testnet-rpc.monad.xyz/';
 const out=path.resolve(__dirname,'../../data/agent-e2e');fs.mkdirSync(out,{recursive:true});
 const chromePath=process.env.CHROME_PATH||(process.platform==='win32'?'C:/Program Files/Google/Chrome/Application/chrome.exe':'google-chrome');
-const port=9241,pause=ms=>new Promise(r=>setTimeout(r,ms));
+// A fresh port per run, so a browser left over from an earlier run can never be reused by mistake.
+const port=20000+Math.floor(Math.random()*20000),pause=ms=>new Promise(r=>setTimeout(r,ms));
 const results=[],txs=[];
 function record(name,ok,detail=''){results.push({name,ok,detail});console.log(`${ok?'PASS':'FAIL'}  ${name}${detail?'  '+detail:''}`);}
 
@@ -112,13 +113,18 @@ async function main(){
     // ---------- Business self-serve: a judge creates their own company with a new passkey ----------
     const j=await openPage(cdp,BUSINESS+'/employer',{width:1366,height:900,mobile:false});current=j;
     await step('business: judge creates a company passkey',async()=>{await j.waitFor(`document.body.innerText.includes('Create company passkey')`,60000,'sign-in');await addAuthenticator(j);
-      await j.fill('.b-newco input','Agent Café');await j.click('Create company passkey');await j.waitFor(`document.body.innerText.includes('Create your company')||document.body.innerText.includes('Overview')`,90000,'setup');});
-    await step('business: judge creates a company on chain (fee credit sponsored)',async()=>{await pause(8000);await j.fill('.b-form input','Agent Café');await j.click('Create my company');
+      for(let attempt=1;attempt<=2;attempt++){await j.fill('.b-newco input','Agent Café');await j.click('Create company passkey');
+        try{await j.waitFor(`document.querySelector('.b-shell')`,25000,'signed in');break;}
+        catch(err){if(attempt===2)throw err;await j.goto(BUSINESS+'/employer');await j.waitFor(`document.body.innerText.includes('Create company passkey')`,60000,'sign-in');}}
+      await j.waitFor(`document.body.innerText.includes('Create my company')`,60000,'company setup');});
+    await step('business: judge creates a company on chain (fee credit sponsored)',async()=>{await pause(6000);await j.fill('.b-form input','Agent Café');await j.click('Create my company');
       await j.waitFor(`document.body.innerText.includes('Company created')`,120000,'company');const h=await j.eval(`(document.body.innerText.match(/Company created · (0x[0-9a-f]{64})/)||[])[1]||''`);if(!h||!await receiptOk(h))throw new Error('no receipt '+h);txs.push({step:'create-company',hash:h});return h;});
     await step('business: new company dashboard opens',async()=>{await j.waitFor(`document.body.innerText.includes('Funded payroll')||document.body.innerText.includes('No employees yet')`,90000,'dashboard');await j.shot('business-new-company');});
     record('business: no uncaught page errors (self-serve)',j.errors.length===0,j.errors.slice(0,3).join(' | '));
   }finally{
-    cdp?.close();chrome.kill();
+    cdp?.close();
+    // On Windows the spawned launcher is not the browser; end the whole process tree.
+    if(process.platform==='win32')spawn('taskkill',['/PID',String(chrome.pid),'/T','/F'],{stdio:'ignore'});else chrome.kill();
     const failed=results.filter(r=>!r.ok).length;
     fs.writeFileSync(path.join(out,'report.json'),JSON.stringify({ranAt:new Date().toISOString(),employee:EMPLOYEE,business:BUSINESS,passed:results.length-failed,failed,results,transactions:txs},null,2));
     console.log(`\n${results.length-failed}/${results.length} passed · report: ${path.join(out,'report.json')}`);

@@ -95,9 +95,10 @@ code https://github.com/Lakshmikanth-3/ShiftPay
 | 4. Real testnet run | In progress | USDC vault `0xA1C794EA48A1D86294848D28E85c76328070DB24` (block 69456787, employer 1); employee 1 registered; funding fix deployed; full payroll cycle with the owner's passkey still to run; AUSD payroll vault not deployed |
 | 5. Sponsor proof, user testing, videos, submission | In progress | Agora send-abroad, direct send and cash-out confirmed on chain by the automated agent; user tests and videos pending |
 
-**Automated proof:** `npm run test:agent` drives both live sites with a virtual passkey and passed 22/22 checks,
-including real Monad transactions: send abroad via Agora Instant Settlement `0x044db4ba…5a67bdf56`, direct send
-`0x4f0590c9…27484cb1`, cash out `0xf36f4f3b…a026628a`. App unit tests: 38/38.
+**Automated proof:** `npm run test:agent` drives both live sites with a virtual passkey and passed 26/26 checks on
+11 Oct 2026, with real Monad transactions: send abroad via Agora Instant Settlement `0xcd3a6301…a51f0a5e`, cash out
+`0xcb5e299e…2e5bfcc6`, and a brand-new business passkey creating its own company with a sponsored fee credit
+`0x3770f479…326976b7`. Judges can therefore try both the employee and the business side themselves.
 
 **Bounties entered on the portal:** Agora Cross-Border Payments, Best Mera-Powered UX, Mera: One Passkey Many Keys.
 Not eligible: Best Community Team (campus not on the onboarded list). Envio: live, payroll history indexed by HyperSync (health reports `envio-hypersync ok`).
