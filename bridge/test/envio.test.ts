@@ -21,6 +21,10 @@ describe('Envio payroll event source',()=>{
       ]}}),
     }));
   });
+  it('accepts the batched data list HyperSync returns',async()=>{
+    const result=await queryPayrollEvents({...args,fetcher:fixture({next_block:150,archive_height:900,data:[{logs:[log]},{logs:[]}]})});
+    expect(result.logs).toHaveLength(1);expect(result.nextBlock).toBe(150n);
+  });
   it('does not treat indexer lag as completed coverage',async()=>{
     const result=await queryPayrollEvents({...args,fetcher:fixture({next_block:100,data:{logs:[]}})});
     expect(result.nextBlock).toBe(100n);expect(result.logs).toEqual([]);

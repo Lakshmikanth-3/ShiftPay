@@ -100,12 +100,12 @@ including real Monad transactions: send abroad via Agora Instant Settlement `0x0
 `0x4f0590c9…27484cb1`, cash out `0xf36f4f3b…a026628a`. App unit tests: 38/38.
 
 **Bounties entered on the portal:** Agora Cross-Border Payments, Best Mera-Powered UX, Mera: One Passkey Many Keys.
-Not eligible: Best Community Team (campus not on the onboarded list). Envio: implemented, waiting for the API token.
+Not eligible: Best Community Team (campus not on the onboarded list). Envio: live, payroll history indexed by HyperSync (health reports `envio-hypersync ok`).
 
 ### Remaining work, in order
 
 1. Owner: suspend employee 1, register employee 2 for the phone account, fund it, run a shift, withdraw.
-2. Owner: set the Envio API token in Vercel; then switch indexing to HyperSync and add the Envio bounty.
+2. Done: Envio HyperSync indexing live and the Envio bounty added.
 3. Owner: make the GitHub repository public, or invite metropolis@hackathon.monad.xyz.
 4. Owner: five-person user test ([USER_TESTING.md](USER_TESTING.md)).
 5. Deploy the AUSD payroll vault and repeat the cycle in AUSD.
@@ -439,7 +439,7 @@ The ticking number is the entire emotional product. Build it first and make it b
 | Payroll service | Fastify app bundled into the business Next.js project, served at `/api/bridge/*` on Vercel |
 | Database | Neon Postgres via the Vercel Marketplace, Prisma, one schema per token |
 | Settlement | USDC and Agora AUSD; Agora Instant Settlement pair for send-abroad and cash-out |
-| Indexing | Vault events stored in Postgres with a persisted cursor; Envio HyperSync source ready |
+| Indexing | Envio HyperSync feeds vault events into Postgres with a persisted cursor |
 
 Bounty focus: **Agora cross-border payments**, **Best Mera-Powered UX** and **Mera: One Passkey, Many Keys**.
 Privy was removed so Mera is the entire account layer.

@@ -123,7 +123,7 @@ export function buildApp(ctx: Ctx): FastifyInstance {
         const r = await queryPayrollEvents({ chainId: cfg.chainId, token: cfg.envioToken ?? '', vault: chain.vault, fromBlock: block - 100n, toBlock: block });
         indexer = { source: 'envio-hypersync', ok: true, error: r.nextBlock < block - 100n ? 'lagging' : undefined };
       } catch (err) {
-        indexer = { source: 'envio-hypersync', ok: false, error: (err as { code?: string }).code ?? 'unavailable' };
+        indexer = { source: 'envio-hypersync', ok: false, error: ((err as { code?: string }).code ?? 'unavailable') + ': ' + String((err as Error).message).slice(0, 160) };
       }
     }
     return {

@@ -13,7 +13,9 @@ const logSchema=z.object({
   data:z.string().regex(/^0x(?:[0-9a-fA-F]{2})*$/),
   topic0:hash,topic1:hash.nullable(),topic2:hash.nullable(),topic3:hash.nullable(),
 });
-const responseSchema=z.object({next_block:number,data:z.object({logs:z.array(logSchema)})});
+// HyperSync's JSON API returns `data` as a list of batches, each with its own logs; a single batch object is also accepted.
+const batch=z.object({logs:z.array(logSchema).optional().default([])}).passthrough();
+const responseSchema=z.object({next_block:number,data:z.union([z.array(batch),batch])}).passthrough();
 
 /** A paginated real event source. Failures never switch to another provider. */
 export async function queryPayrollEvents(options:{
@@ -43,10 +45,11 @@ export async function queryPayrollEvents(options:{
     'envio_unavailable');
   let raw:unknown;try{raw=await response.json();}catch{throw new HttpError(503,'Invalid Envio payroll event response.','envio_response');}
   const result=responseSchema.safeParse(raw);
-  if(!result.success)throw new HttpError(503,'Invalid Envio payroll event response.','envio_response');
+  if(!result.success)throw new HttpError(503,'Invalid Envio payroll event response: '+result.error.issues.slice(0,2).map(i=>i.path.join('.')+' '+i.message).join('; '),'envio_response');
   const nextBlock=BigInt(result.data.next_block);
   if(nextBlock<fromBlock||nextBlock>toBlock+1n)throw new HttpError(503,'Invalid Envio indexing cursor.','envio_response');
-  const logs=result.data.data.logs.map(value=>{
+  const batches=Array.isArray(result.data.data)?result.data.data:[result.data.data];
+  const logs=batches.flatMap(b=>b.logs).map(value=>{
     if(value.address.toLowerCase()!==vault.toLowerCase()||BigInt(value.block_number)<fromBlock||BigInt(value.block_number)>=nextBlock)
       throw new HttpError(503,'Envio returned events outside the requested payroll vault or range.','envio_response');
     const topics=[value.topic0,value.topic1,value.topic2,value.topic3];
