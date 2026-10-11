@@ -40,8 +40,11 @@ export async function balances(client,account,tokens){
 }
 
 /** Agora faucet: sends 10,000 test AUSD to the account. The caller pays network gas. */
+export const FAUCET_COOLDOWN='0x20e5bc67';
 export async function requestAusd({client,wallet,account}){
-  const {request}=await client.simulateContract({address:agora.faucet,abi:faucetAbi,functionName:'requestFunds',args:[account],account});
+  let request;
+  try{({request}=await client.simulateContract({address:agora.faucet,abi:faucetAbi,functionName:'requestFunds',args:[account],account}));}
+  catch(error){if(String(error.message).includes(FAUCET_COOLDOWN))throw new Error("Agora's test faucet is cooling down. Try again in a minute.");throw error;}
   const hash=await wallet.writeContract(request);
   await confirm(client,hash);return hash;
 }

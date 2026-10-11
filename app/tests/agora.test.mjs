@@ -40,9 +40,10 @@ test('whitelisting is open to a new account',async()=>{
   await client.call({account:company,to:agora.whitelister,data:whitelistCalldata(company)});
 });
 
-test('Agora faucet holds AUSD and accepts a request',async()=>{
+test('Agora faucet holds AUSD and accepts a request',async(t)=>{
   const held=await client.readContract({address:agora.ausd,abi:erc20Abi,functionName:'balanceOf',args:[agora.faucet]});
   assert.ok(held>=10_000_000_000n,'faucet has at least 10,000 AUSD');
-  await client.simulateContract({address:agora.faucet,abi:faucetAbi,functionName:'requestFunds',args:[company],account:company});
+  try{await client.simulateContract({address:agora.faucet,abi:faucetAbi,functionName:'requestFunds',args:[company],account:company});}
+  catch(e){if(String(e.message).includes('0x20e5bc67'))return t.skip('Agora faucet cooldown active');throw e;}
   assert.deepEqual(decodeFunctionData({abi:faucetAbi,data:'0x544c7cf9'+company.slice(2).toLowerCase().padStart(64,'0')}).args,[company]);
 });
