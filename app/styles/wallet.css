@@ -55,3 +55,4 @@
 .m-seg button{border:0;background:transparent;border-radius:10px;padding:10px 6px;font-weight:700;font-size:13px;color:var(--m-muted);cursor:pointer;min-height:40px}
 .m-seg button.on{background:#fff;color:var(--m-brand);box-shadow:0 1px 3px #0001}
 .m-unit{padding:13px 14px;border:1px solid var(--m-line);border-radius:12px;background:var(--m-bg);font-weight:700}
+.m-payid{font-size:22px;font-weight:800;letter-spacing:.06em;margin:8px 0}

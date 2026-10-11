@@ -10,7 +10,7 @@ import {pitchUrl} from '../lib/pitch.mjs';
 import {unlockPayslipVault,openPayslips,sealPayslips} from '../lib/private-payslips.mjs';
 import {agora,agoraMonadMetrics,balances,instantSettle,parseAmount,quoteSettlement,requestAusd,sendToken} from '../lib/agora.mjs';
 
-const lowFee=10_000_000_000_000_000n; // below 0.01 MON the employer tops up network-fee credit
+const lowFee=50_000_000_000_000_000n; // below 0.05 MON the employer tops up network-fee credit (Monad reserves gasLimit × maxFee)
 
 const tabs=[['','Home','⌂'],['send','Send','↗'],['cashout','Cash out','⇄'],['history','History','☰'],['profile','Profile','◉']];
 const explorer=hash=>'https://testnet.monadexplorer.com/tx/'+hash;
@@ -41,7 +41,7 @@ function useWallet(){
   return {p,account,bal,status,setStatus,error,setError,working,run,activity,addActivity,refresh};
 }
 
-function TxLink({hash,children='View on explorer'}){return hash?<a className="m-link" href={explorer(hash)} target="_blank" rel="noreferrer">{children} ↗</a>:null}
+function TxLink({hash,children='View receipt'}){return hash?<a className="m-link" href={explorer(hash)} target="_blank" rel="noreferrer">{children} ↗</a>:null}
 function Feedback({w}){return <>{w.error&&<p className="m-alert error" role="alert">{w.error}</p>}{w.status&&!w.error&&<p className="m-alert" role="status">{w.status}</p>}</>}
 function GasNote({w}){if(!w.bal||w.bal.MON>=lowFee)return null;return <p className="m-alert warn">Setting up your free network-fee credit…</p>}
 
@@ -49,7 +49,7 @@ function GasNote({w}){if(!w.bal||w.bal.MON>=lowFee)return null;return <p classNa
 function useSponsoredGas(w){
   const p=w.p,asked=useRef('');
   useEffect(()=>{const key=(p.owns?p.selected:'new')+':'+w.account;if(!w.account||!w.bal||w.bal.MON>=lowFee||asked.current===key)return;asked.current=key;
-    p.api('gas-grants',p.owns?{workerId:p.selected}:{address:w.account}).then(r=>{if(r.granted){w.addActivity({type:'Free fee credit',amount:'+'+(Number(r.amount)/1e18),symbol:'MON',hash:r.hash});w.refresh();}}).catch(()=>{asked.current='';});
+    p.api('gas-grants',p.owns?{workerId:p.selected}:{address:w.account}).then(r=>{if(r.granted){w.addActivity({type:'Free fee credit added',amount:'+fees',symbol:'',hash:r.hash});w.refresh();}}).catch(()=>{asked.current='';});
   },[p.owns,p.selected,w.bal?.MON,w.account]);
 }
 
@@ -89,16 +89,16 @@ function Wages({w}){
 
 function Home({w}){
   const p=w.p,b=w.bal;useSponsoredGas(w);
-  async function faucet(){const hash=await w.run('Requesting test AUSD from Agora',wallet=>requestAusd({client:p.client,wallet,account:w.account}));if(hash){w.addActivity({type:'Received from Agora faucet',amount:'10,000',symbol:'AUSD',hash});w.setStatus('10,000 test AUSD received.')}}
+  async function faucet(){const hash=await w.run('Adding test dollars',wallet=>requestAusd({client:p.client,wallet,account:w.account}));if(hash){w.addActivity({type:'Test dollars added',amount:'+10,000',symbol:'USD',hash});w.setStatus('10,000 test dollars added.')}}
   return <>
     <section className="m-balance"><p>Digital dollars</p><strong>${b?fmt(b.AUSD+b.USDC,6):'…'}</strong>
-      <div className="m-sub">{b&&<>{fmt(b.AUSD,6)} AUSD · {fmt(b.USDC,6)} USDC · {fmt(b.CTK,18)} local (CTK)</>}</div>
+      <div className="m-sub">{b&&<>Wages and transfers in US dollars{b.CTK>0n?<> · {fmt(b.CTK,18)} in local currency</>:null}</>}</div>
       <div className="m-sub">{b&&<>Fee credit {b.MON>=lowFee?'ready':'empty'} · paid by your employer</>}</div></section>
     <nav className="m-actions" aria-label="Quick actions">
       <Link href="/employee/send"><i>↗</i>Send</Link>
       <Link href="/employee/receive"><i>↙</i>Receive</Link>
       <Link href="/employee/cashout"><i>⇄</i>Cash out</Link>
-      <button onClick={faucet} disabled={w.working}><i>＋</i>Get AUSD</button>
+      <button onClick={faucet} disabled={w.working}><i>＋</i>Add test $</button>
     </nav>
     <Feedback w={w}/><GasNote w={w}/>
     <Wages w={w}/>
@@ -121,34 +121,35 @@ function Send({w}){
     if(settle){
       if(!/^0x[0-9a-fA-F]{40}$/.test(to)){w.setError('Enter a valid recipient address.');return;}
       const result=await w.run('Sending through Agora Instant Settlement',wallet=>instantSettle({client:p.client,wallet,account:w.account,amount:value,to,onStep:w.setStatus}));
-      if(result){w.addActivity({type:'Sent abroad to '+short(to)+(note?' · '+note:''),amount:'-'+amount,symbol:'AUSD',hash:result.hashes.settle});w.setStatus('');setDone({hash:result.hashes.settle,amount,to,received:result.display+' local (CTK)'});setAmount('');}
+      if(result){w.addActivity({type:'Sent abroad to '+short(to)+(note?' · '+note:''),amount:'-'+amount,symbol:'AUSD',hash:result.hashes.settle});w.setStatus('');setDone({hash:result.hashes.settle,amount,to,received:result.display+' in local currency'});setAmount('');}
       return;
     }
     const hash=await w.run('Sending '+amount+' '+sym,wallet=>sendToken({client:p.client,wallet,account:w.account,token:token.address,to,amount:value}));
-    if(hash){w.addActivity({type:'Sent to '+short(to)+(note?' · '+note:''),amount:'-'+amount,symbol:sym,hash});w.setStatus('');setDone({hash,amount,to,received:amount+' '+sym});setAmount('');}}
+    if(hash){w.addActivity({type:'Sent to '+short(to)+(note?' · '+note:''),amount:'-'+amount,symbol:sym,hash});w.setStatus('');setDone({hash,amount,to,received:'$'+amount});setAmount('');}}
   return <section className="m-card"><h2>Send money</h2><p className="m-muted">Send to family or anyone, anywhere. Settled instantly on Monad.</p>
     <div className="m-seg" role="radiogroup" aria-label="Delivery">
-      <button type="button" role="radio" aria-checked={settle} className={settle?'on':''} onClick={()=>setMode('settle')}>Abroad · instant settlement</button>
-      <button type="button" role="radio" aria-checked={!settle} className={!settle?'on':''} onClick={()=>setMode('direct')}>Digital dollars</button>
+      <button type="button" role="radio" aria-checked={settle} className={settle?'on':''} onClick={()=>setMode('settle')}>Send abroad · instant</button>
+      <button type="button" role="radio" aria-checked={!settle} className={!settle?'on':''} onClick={()=>setMode('direct')}>Send dollars</button>
     </div>
     <form className="m-form" onSubmit={submit}>
-      <label>Recipient address<input value={to} onChange={e=>setTo(e.target.value.trim())} placeholder="0x…" required autoComplete="off"/></label>
+      <label>Recipient's pay ID (account number)<input value={to} onChange={e=>setTo(e.target.value.trim())} placeholder="0x…" required autoComplete="off"/></label>
       <label>Amount<div className="m-row"><input inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0.00" required/>{settle?<span className="m-unit">AUSD</span>:<select value={symbol} onChange={e=>setSymbol(e.target.value)}><option>AUSD</option><option>USDC</option></select>}</div></label>
-      <small className="m-muted">Balance: {w.bal?fmt(w.bal[sym],token.decimals,6):'…'} {sym}{settle?' · recipient receives local currency (CTK) 1:1 through Agora, no fee':''}</small>
+      <small className="m-muted">Balance: {w.bal?fmt(w.bal[sym],token.decimals,6):'…'} {sym}{settle?' · they receive local currency instantly, 1:1, no fee':''}</small>
       <label>Note (optional, kept on this device)<input maxLength={80} value={note} onChange={e=>setNote(e.target.value)}/></label>
-      <button className="m-primary wide" disabled={w.working}>{w.working?'Sending…':'Send '+sym}</button>
+      <button className="m-primary wide" disabled={w.working}>{w.working?'Sending…':'Send money'}</button>
     </form><Feedback w={w}/><GasNote w={w}/>
-    {done&&<div className="m-success"><b>Sent {done.amount} {sym}</b><p>To {short(done.to)} · they received {done.received}</p><TxLink hash={done.hash}/></div>}
+    {done&&<div className="m-success"><b>Sent ${done.amount}</b><p>To {short(done.to)} · they received {done.received}</p><TxLink hash={done.hash}/></div>}
     <AgoraTrust/></section>;
 }
 
 function Receive({w}){
   const [qr,setQr]=useState(''),[copied,setCopied]=useState(false);
   useEffect(()=>{if(!w.account)return;import('qrcode').then(QR=>QR.toDataURL(w.account,{margin:1,width:240})).then(setQr).catch(()=>setQr(''))},[w.account]);
-  return <section className="m-card center"><h2>Receive</h2><p className="m-muted">Share this address to receive AUSD or USDC on Monad testnet.</p>
+  return <section className="m-card center"><h2>Receive money</h2><p className="m-muted">Show this code or share your pay ID. Your employer uses it to pay you.</p>
     {qr&&<img className="m-qr" src={qr} alt="QR code of your wallet address" width={240} height={240}/>}
-    <p className="m-mono">{w.account}</p>
-    <button className="m-primary wide" onClick={()=>navigator.clipboard.writeText(w.account).then(()=>setCopied(true),()=>setCopied(false))}>{copied?'Copied':'Copy address'}</button></section>;
+    <p className="m-payid">Pay ID · {w.account?w.account.slice(2,6).toUpperCase()+' '+w.account.slice(-4).toUpperCase():''}</p>
+    <details className="m-fine"><summary>Full account number</summary><p className="m-mono">{w.account}</p></details>
+    <button className="m-primary wide" onClick={()=>navigator.clipboard.writeText(w.account).then(()=>setCopied(true),()=>setCopied(false))}>{copied?'Copied':'Copy pay ID'}</button></section>;
 }
 
 function CashOut({w}){
@@ -158,23 +159,23 @@ function CashOut({w}){
     const value=(()=>{try{return parseAmount(amount)}catch(err){w.setError(err.message)}})();if(!value)return;
     const result=await w.run('Preparing Agora Instant Settlement',wallet=>instantSettle({client:p.client,wallet,account:w.account,amount:value,onStep:w.setStatus}));
     if(result){w.addActivity({type:'Instant Settlement AUSD → CTK',amount:'-'+amount,symbol:'AUSD',hash:result.hashes.settle});w.setStatus('');setDone(result);setAmount('');}}
-  return <section className="m-card"><h2>Cash out</h2><p className="m-muted">Convert AUSD instantly at Agora's fixed price through the Instant Settlement pair. No slippage, no order book.</p>
+  return <section className="m-card"><h2>Cash out</h2><p className="m-muted">Turn your dollars into local currency instantly, at a fixed 1:1 rate with no fee.</p>
     <form className="m-form" onSubmit={submit}>
       <label>You pay (AUSD)<input inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0.00" required/></label>
-      <div className="m-quote"><span>You receive</span><b>{quote===null?'—':fmt(quote,18,6)+' CTK'}</b></div>
-      <small className="m-muted">Balance: {w.bal?fmt(w.bal.AUSD,6,6):'…'} AUSD · Pair {short(agora.pair)}</small>
+      <div className="m-quote"><span>You receive</span><b>{quote===null?'—':fmt(quote,18,6)+' local'}</b></div>
+      <small className="m-muted">Available: ${w.bal?fmt(w.bal.AUSD,6,2):'…'}</small>
       <button className="m-primary wide" disabled={w.working||quote===0n}>{w.working?'Settling…':'Settle instantly'}</button>
     </form><Feedback w={w}/><GasNote w={w}/>
-    {done&&<div className="m-success"><b>Received {done.display} CTK</b>{done.hashes.whitelist&&<TxLink hash={done.hashes.whitelist}>Agora registration</TxLink>}{done.hashes.approve&&<TxLink hash={done.hashes.approve}>Authorization</TxLink>}<TxLink hash={done.hashes.settle}>Settlement</TxLink></div>}
-    <p className="m-fine">First use registers this account with Agora's testnet whitelister, then authorizes AUSD. Testnet supports AUSD → CTK only.</p><AgoraTrust/></section>;
+    {done&&<div className="m-success"><b>Received {done.display} in local currency</b>{done.hashes.whitelist&&<TxLink hash={done.hashes.whitelist}>Registration receipt</TxLink>}{done.hashes.approve&&<TxLink hash={done.hashes.approve}>Authorization receipt</TxLink>}<TxLink hash={done.hashes.settle}>Settlement receipt</TxLink></div>}
+    <details className="m-fine"><summary>How it works</summary><p>Settled through Agora Instant Settlement on Monad. The first cash-out also registers your account with Agora and authorizes the amount; later ones are a single step.</p></details><AgoraTrust/></section>;
 }
 
 function Recent({w,all=false}){
   const p=w.p,shifts=p.history||[];
   const items=all?w.activity:w.activity.slice(0,4);
   return <section className="m-card"><div className="m-row between"><h3>{all?'Wallet activity':'Recent activity'}</h3>{!all&&<Link className="m-link" href="/employee/history">See all</Link>}</div>
-    {items.length?<ul className="m-list">{items.map((a,i)=><li key={a.hash+i}><div><b>{a.type}</b><small>{new Date(a.at).toLocaleString()}</small></div><div className="right"><b className={a.amount.startsWith('-')?'':'pos'}>{a.amount} {a.symbol}</b><TxLink hash={a.hash}>Tx</TxLink></div></li>)}</ul>:<p className="m-muted">No transactions from this device yet.</p>}
-    {all&&<><h3>Verified shifts</h3>{shifts.length?<ul className="m-list">{shifts.map(s=>{const tx=s.attestations.flatMap(a=>a.txs).find(t=>t.hash);return <li key={s.id}><div><b>{s.status==='OPEN'?'Current shift':'Completed shift'}</b><small>{new Date(Number(s.startAt)*1000).toLocaleString()}{s.endAt?' — '+new Date(Number(s.endAt)*1000).toLocaleTimeString():''}</small></div><div className="right">{tx&&<TxLink hash={tx.hash}>Tx</TxLink>}</div></li>})}</ul>:<p className="m-muted">Link your payroll on Home to see shifts.</p>}</>}
+    {items.length?<ul className="m-list">{items.map((a,i)=><li key={a.hash+i}><div><b>{a.type}</b><small>{new Date(a.at).toLocaleString()}</small></div><div className="right"><b className={a.amount.startsWith('-')?'':'pos'}>{a.amount} {a.symbol}</b><TxLink hash={a.hash}>Receipt</TxLink></div></li>)}</ul>:<p className="m-muted">No transactions from this device yet.</p>}
+    {all&&<><h3>Verified shifts</h3>{shifts.length?<ul className="m-list">{shifts.map(s=>{const tx=s.attestations.flatMap(a=>a.txs).find(t=>t.hash);return <li key={s.id}><div><b>{s.status==='OPEN'?'Current shift':'Completed shift'}</b><small>{new Date(Number(s.startAt)*1000).toLocaleString()}{s.endAt?' — '+new Date(Number(s.endAt)*1000).toLocaleTimeString():''}</small></div><div className="right">{tx&&<TxLink hash={tx.hash}>Receipt</TxLink>}</div></li>})}</ul>:<p className="m-muted">Link your payroll on Home to see shifts.</p>}</>}
   </section>;
 }
 
@@ -205,7 +206,7 @@ function Profile({w}){
   const p=w.p,profile=p.dashboard?.workers?.find(r=>r.workerId===p.selected)?.profile;
   return <section className="m-card"><h2>{profile?.name||'Your account'}</h2>{profile&&<p className="m-muted">{profile.role} · {profile.department}</p>}
     {profile?.notes&&<p className="m-alert">{profile.notes}</p>}
-    <dl className="m-dl"><dt>Wallet</dt><dd className="m-mono">{w.account}</dd><dt>Sign-in</dt><dd>Mera passkey, works on any device with the same passkey</dd>
+    <dl className="m-dl"><dt>Pay ID</dt><dd>{w.account?w.account.slice(2,6).toUpperCase()+' '+w.account.slice(-4).toUpperCase():''}</dd><dt>Sign-in</dt><dd>Passkey (face, fingerprint or PIN), works on any of your devices</dd>
       {p.worker&&<><dt>Employee ID</dt><dd>{p.selected}</dd><dt>Hourly rate</dt><dd>{p.units(p.worker.worker.ratePerHour)}</dd><dt>Withholding</dt><dd>{Number(p.worker.worker.withholdingBps)/100}%</dd></>}</dl>
     <details className="m-form"><summary>Advanced</summary><label>Payroll currency<select value={p.asset} disabled={p.busy||!!p.pending} onChange={e=>p.setAsset(e.target.value)}><option>AUSD</option><option>USDC</option></select></label></details>
     {(p.owns)&&<button className="m-ghost wide" disabled={p.busy} onClick={()=>p.loadDashboard()}>Load company notes (signature, no funds move)</button>}
@@ -220,7 +221,7 @@ export default function WalletApp({section=''}){
   const signedIn=p.authenticated&&p.wallet;
   const screen={send:Send,receive:Receive,cashout:CashOut,history:History,profile:ProfileScreen}[section]||Home;
   return <div className="m-shell"><div className="m-phone">
-    <header className="m-top"><span className="m-logo small">S</span><b>ShiftPay</b><a className="m-pitch" href={pitchUrl} target="_blank" rel="noreferrer">▶ Pitch</a><span className="m-net">Testnet</span></header>
+    <header className="m-top"><span className="m-logo small">S</span><b>ShiftPay</b><a className="m-pitch" href={pitchUrl} target="_blank" rel="noreferrer">▶ Pitch</a></header>
     <main className="m-main">{!signedIn?<Login/>:React.createElement(screen,{w})}
       {p.error&&signedIn&&!p.error.includes('pending')&&<p className="m-alert error">{p.error}</p>}
       {p.notice&&signedIn&&<p className="m-alert">{p.notice}</p>}</main>

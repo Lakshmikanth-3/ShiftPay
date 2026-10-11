@@ -40,7 +40,7 @@ async function openPage(cdp,url,{width=390,height=844,mobile=true,context}={}){
   await s('Page.navigate',{url});
   const page={s,sessionId,errors,
     eval:async expr=>{const r=await s('Runtime.evaluate',{expression:expr,awaitPromise:true,returnByValue:true});if(r.exceptionDetails)throw new Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result.value;},
-    async waitFor(expr,timeout=60000,label=expr){const end=Date.now()+timeout;while(Date.now()<end){try{if(await page.eval(expr))return true;}catch{}await pause(500);}throw new Error('Timed out waiting for '+label);},
+    async waitFor(expr,timeout=60000,label=expr){const end=Date.now()+timeout;while(Date.now()<end){try{if(await page.eval(`!!(${expr})`))return true;}catch{}await pause(500);}throw new Error('Timed out waiting for '+label);},
     text:()=>page.eval('document.body.innerText'),
     async click(text){const ok=await page.eval(`(()=>{const t=${JSON.stringify(text)};const el=[...document.querySelectorAll('button,a')].find(e=>e.innerText.trim().includes(t)&&!e.disabled);if(!el)return false;el.click();return true})()`);if(!ok)throw new Error('No enabled control: '+text);},
     async fill(selector,value){const ok=await page.eval(`(()=>{const el=document.querySelector(${JSON.stringify(selector)});if(!el)return false;const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(el,${JSON.stringify(value)});el.dispatchEvent(new Event('input',{bubbles:true}));return true})()`);if(!ok)throw new Error('No input: '+selector);},
@@ -55,7 +55,10 @@ async function addAuthenticator(page){
   const {authenticatorId}=await page.s('WebAuthn.addVirtualAuthenticator',{options:{protocol:'ctap2',ctap2Version:'ctap2_1',transport:'internal',hasResidentKey:true,hasUserVerification:true,isUserVerified:true,hasPrf:true,automaticPresenceSimulation:true}});
   return authenticatorId;
 }
-async function step(name,fn){try{const detail=await fn();record(name,true,detail||'');return true;}catch(e){record(name,false,e.message);return false;}}
+let current=null;
+async function step(name,fn){try{const detail=await fn();record(name,true,detail||'');return true;}
+  catch(e){let seen='';if(current){try{seen=await current.eval(`[...document.querySelectorAll('.m-alert,.b-alert,[role=alert]')].map(x=>x.innerText).join(' | ')`);await current.shot('fail-'+name.replace(/[^a-z0-9]+/gi,'-'));}catch{}}
+    record(name,false,e.message+(seen?'  [screen: '+seen.slice(0,300)+']':''));return false;}}
 
 async function main(){
   const profile=fs.mkdtempSync(path.join(os.tmpdir(),'shiftpay-agent-'));
@@ -64,22 +67,22 @@ async function main(){
   try{
     const version=await connect();cdp=session(version.webSocketDebuggerUrl);
     // ---------- Employee mobile wallet ----------
-    const e=await openPage(cdp,EMPLOYEE+'/employee');
+    const e=await openPage(cdp,EMPLOYEE+'/employee');current=e;
     let auth,address;
     await step('employee: app loads to passkey sign-in',async()=>{await e.waitFor(`document.body.innerText.includes('Create payroll passkey')`,60000,'sign-in');auth=await addAuthenticator(e);});
     await step('employee: one-prompt passkey onboarding (Mera PRF)',async()=>{const t0=Date.now();await e.fill('.passkey-access input','Agent Tester');await e.click('Create payroll passkey');await e.waitFor(`document.body.innerText.includes('Digital dollars')`,60000,'home');return `${((Date.now()-t0)/1000).toFixed(1)}s`;});
-    await step('employee: no crypto wording on home',async()=>{const t=await e.text();for(const bad of ['MON ','0x','Testnet balance','Wallet balance'])if(t.includes(bad)&&bad!=='0x')throw new Error('found '+bad);});
+    await step('employee: no crypto wording on home',async()=>{const t=await e.text();for(const bad of [' MON','0x','Testnet','Wallet balance','AUSD','CTK'])if(t.includes(bad))throw new Error('found '+bad);});
     await step('employee: receive shows address and QR',async()=>{await e.click('Receive');await e.waitFor(`document.querySelector('.m-qr')`,30000,'qr');
       address=await e.eval(`document.querySelector('.m-mono')?.innerText||''`);if(!/^0x[0-9a-fA-F]{40}$/.test(address))throw new Error('no address');return address;});
     const unlock=async()=>{if(await e.eval(`document.body.innerText.includes('Unlock payroll passkey')`)){await e.click('Unlock payroll passkey');await e.waitFor(`!document.body.innerText.includes('Unlock payroll passkey')`,60000,'unlock');}};
     await step('employee: automatic fee credit for a new account',async()=>{await e.tab('Home');await e.waitFor(`document.body.innerText.includes('Fee credit ready')`,90000,'fee credit');});
-    await step('employee: Get AUSD from Agora faucet',async()=>{await e.click('Get AUSD');await e.waitFor(`document.body.innerText.includes('10,000 test AUSD received')`,90000,'faucet');});
+    await step('employee: add test dollars (Agora faucet)',async()=>{await e.click('Add test $');await e.waitFor(`document.body.innerText.includes('10,000 test dollars added')`,90000,'faucet');});
     const lastTx=()=>e.eval(`[...document.querySelectorAll('.m-success a')].map(a=>a.href.split('/tx/')[1]).filter(Boolean).pop()||''`);
-    await step('employee: send abroad through Agora Instant Settlement',async()=>{await e.click('Send');await e.waitFor(`document.body.innerText.includes('Abroad · instant settlement')`);
-      await e.fill('.m-form input[placeholder="0x…"]',RECIPIENT);await e.fill('.m-form input[placeholder="0.00"]','1');await e.click('Send AUSD');
+    await step('employee: send abroad through Agora Instant Settlement',async()=>{await e.click('Send');await e.waitFor(`document.body.innerText.includes('Send abroad · instant')`);
+      await e.fill('.m-form input[placeholder="0x…"]',RECIPIENT);await e.fill('.m-form input[placeholder="0.00"]','1');await e.click('Send money');
       await e.waitFor(`document.querySelector('.m-success')`,120000,'settlement');const h=await lastTx();if(!h||!await receiptOk(h))throw new Error('receipt failed '+h);txs.push({step:'send-abroad',hash:h});return h;});
-    await step('employee: send digital dollars directly',async()=>{await e.click('Digital dollars');await e.fill('.m-form input[placeholder="0x…"]',RECIPIENT);await e.fill('.m-form input[placeholder="0.00"]','1');await e.click('Send AUSD');
-      await e.waitFor(`document.querySelectorAll('.m-success').length&&document.querySelector('.m-success').innerText.includes('they received 1 AUSD')`,90000,'transfer');const h=await lastTx();if(!await receiptOk(h))throw new Error('receipt failed');txs.push({step:'send-direct',hash:h});return h;});
+    await step('employee: send digital dollars directly',async()=>{await e.click('Send dollars');await e.fill('.m-form input[placeholder="0x…"]',RECIPIENT);await e.fill('.m-form input[placeholder="0.00"]','1');await e.click('Send money');
+      await e.waitFor(`document.querySelectorAll('.m-success').length&&document.querySelector('.m-success').innerText.includes('they received $1')`,90000,'transfer');const h=await lastTx();if(!await receiptOk(h))throw new Error('receipt failed');txs.push({step:'send-direct',hash:h});return h;});
     await step('employee: cash out with Instant Settlement',async()=>{await e.click('Cash out');await e.waitFor(`document.body.innerText.includes('Settle instantly')`);await e.fill('.m-form input[placeholder="0.00"]','1');await e.waitFor(`document.querySelector('.m-quote b')?.innerText.includes('CTK')`);await e.click('Settle instantly');
       await e.waitFor(`document.querySelector('.m-success')`,120000,'cash out');const h=await lastTx();if(!await receiptOk(h))throw new Error('receipt failed');txs.push({step:'cash-out',hash:h});return h;});
     await step('employee: Agora public API data shown',async()=>{await e.waitFor(`document.body.innerText.includes('live from Agora')`,30000,'agora metrics');});
@@ -99,7 +102,7 @@ async function main(){
       const [sw,cw,tabs]=await e.eval(`[document.documentElement.scrollWidth,document.documentElement.clientWidth,document.querySelector('.m-tabs')?.getBoundingClientRect().width||0]`);if(sw>cw)throw new Error(`/${tab} overflows ${sw}>${cw}`);if(tabs>441)throw new Error('tab bar too wide '+tabs);await e.shot('employee-'+tab.toLowerCase().replace(' ','-'));}});
     record('employee: no uncaught page errors',e.errors.length===0,e.errors.slice(0,3).join(' | '));
     // ---------- Business website ----------
-    const b=await openPage(cdp,BUSINESS+'/employer',{width:1366,height:900,mobile:false});
+    const b=await openPage(cdp,BUSINESS+'/employer',{width:1366,height:900,mobile:false});current=b;
     await step('business: passkey sign-in screen',async()=>{await b.waitFor(`document.body.innerText.includes('Unlock company passkey')`,60000,'sign-in');await b.shot('business-signin');});
     await step('business: pitch link and unlock explanation',async()=>{const t=await b.text();if(!t.includes('Pitch')||!t.includes('What happens when I unlock?'))throw new Error('missing');});
     await step('business: company setup page loads',async()=>{await b.goto(BUSINESS+'/deploy');await b.waitFor(`document.body.innerText.includes('Company registration')`,60000,'setup');await b.shot('business-setup');});

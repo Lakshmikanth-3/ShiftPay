@@ -57,7 +57,8 @@ function Workspace({children}){
   const admin=authenticated && !!cfg && wallet?.address.toLowerCase()===cfg.admin.toLowerCase();
   const owns=authenticated && !!worker && wallet?.address.toLowerCase()===worker.worker.payoutAddr.toLowerCase();
   const storageKey=cfg&&wallet&&selected?`shiftpay:${cfg.chainId}:${cfg.vault}:${wallet.address}:${selected}`:null;
-  const units=value=>cfg?`${formatUnits(BigInt(value),cfg.decimals)} ${cfg.symbol}`:'—';
+  // Both settlement tokens are dollar stablecoins, so amounts read as dollars; the token name stays in technical details.
+  const units=value=>cfg?'$'+Number(formatUnits(BigInt(value),cfg.decimals)).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:6}):'—';
   async function configure(){
     const epoch=++configEpoch.current;
     try{
