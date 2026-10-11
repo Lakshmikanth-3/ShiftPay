@@ -8,6 +8,7 @@ import {PaymentLedger,ProfileEditor} from './business.jsx';
 import {testnetTokens} from '../lib/testnet-tokens.mjs';
 import {requestAusd} from '../lib/agora.mjs';
 import {pitchUrl} from '../lib/pitch.mjs';
+import {SALARY_MAX_SECONDS,SHIFT_MAX_SECONDS,SALARY_HOURS_PER_MONTH,salaryToHourly,isSalaried} from '../lib/pay-plans.mjs';
 
 function PitchLink({className='b-pitch'}){return <a className={className} href={pitchUrl} target="_blank" rel="noreferrer">▶ Pitch</a>}
 
@@ -86,26 +87,34 @@ function Totals({workers}){
 function EmployeeTable({workers,onOpen,actions=false}){
   const p=usePayroll();
   if(!workers.length)return <div className="b-empty"><h3>No employees yet</h3><p>Add your first employee to start paying wages as they work.</p><Link className="b-primary" href="/employer/employees?add=1">Add employee</Link></div>;
-  return <div className="b-table"><table><thead><tr><th>Employee</th><th>Status</th><th>Rate</th><th>Earned</th><th>Available</th><th>Funded</th><th></th></tr></thead><tbody>
-    {workers.map(w=>{const [label,tone]=status(w);return <tr key={w.workerId}><td><b>{name(w)}</b><small>ID {w.workerId} · {w.profile?.role||short(w.worker.payoutAddr)}</small></td><td><span className={'b-pill '+tone}>{label}</span></td><td>{p.units(w.worker.ratePerHour)}/h</td><td>{p.units(gross(w))}</td><td>{p.units(w.claimable)}</td><td>{p.units(w.worker.funded)}</td>
+  return <div className="b-table"><table><thead><tr><th>Employee</th><th>Status</th><th>Pay</th><th>Earned</th><th>Available</th><th>Funded</th><th></th></tr></thead><tbody>
+    {workers.map(w=>{const [label,tone]=status(w);return <tr key={w.workerId}><td><b>{name(w)}</b><small>ID {w.workerId} · {w.profile?.role||short(w.worker.payoutAddr)}</small></td><td><span className={'b-pill '+tone}>{label}</span></td><td>{isSalaried(w.worker)?p.units(BigInt(w.worker.ratePerHour)*BigInt(SALARY_HOURS_PER_MONTH))+'/mo':p.units(w.worker.ratePerHour)+'/h'}</td><td>{p.units(gross(w))}</td><td>{p.units(w.claimable)}</td><td>{p.units(w.worker.funded)}</td>
       <td className="right">{actions&&w.worker.flags===1?<button className="b-small" disabled={p.busy||!!p.pending} onClick={()=>onOpen(w)}>{w.worker.clockInAt==='0'?'Start shift…':'End shift…'}</button>:<button className="b-small ghost" onClick={()=>onOpen(w)}>Open</button>}</td></tr>})}
   </tbody></table></div>;
 }
 
 function AddEmployee({onDone}){
-  const p=usePayroll(),[f,setF]=useState({name:'',role:'',department:'',notes:'',allocation:''}),[gas,setGas]=useState(true);
+  const p=usePayroll(),[f,setF]=useState({name:'',role:'',department:'',notes:'',allocation:'',monthly:''}),[gas,setGas]=useState(true),[kind,setKind]=useState('shift');
   const set=k=>e=>setF({...f,[k]:e.target.value});
   return <section className="b-card"><div className="b-head"><h2>Add employee</h2><button className="b-small ghost" onClick={onDone}>Close</button></div>
     <p className="b-muted">The employee creates a passkey in the ShiftPay employee app and shares the address from <b>Receive</b>. Registration, funding and profile are saved in sequence.</p>
-    <form className="b-form" onSubmit={async e=>{await p.register(e,{name:f.name,role:f.role,department:f.department,notes:f.notes},f.allocation,gas);}}>
+    <div className="b-seg" role="radiogroup" aria-label="Pay type">
+      <button type="button" role="radio" aria-checked={kind==='shift'} className={kind==='shift'?'on':''} onClick={()=>setKind('shift')}><b>Shift pay</b><small>Paid every second during verified shifts</small></button>
+      <button type="button" role="radio" aria-checked={kind==='salary'} className={kind==='salary'?'on':''} onClick={()=>setKind('salary')}><b>Monthly salary</b><small>Paid every second, all month long</small></button>
+    </div>
+    <form className="b-form" onSubmit={async e=>{
+      if(kind==='salary'){let hourly;try{hourly=salaryToHourly(f.monthly,p.cfg?.decimals??6)}catch(err){e.preventDefault();p.execute(async()=>{throw err});return;}
+        await p.register(e,{name:f.name,role:f.role,department:f.department,notes:f.notes},f.allocation||f.monthly,gas,{rate:hourly,maxShiftSeconds:SALARY_MAX_SECONDS});}
+      else await p.register(e,{name:f.name,role:f.role,department:f.department,notes:f.notes},f.allocation,gas,{maxShiftSeconds:SHIFT_MAX_SECONDS});}}>
       <label>Full name<input required maxLength={100} value={f.name} onChange={set('name')}/></label>
       <label>Role<input required maxLength={100} value={f.role} onChange={set('role')}/></label>
       <label>Department<input required maxLength={100} value={f.department} onChange={set('department')}/></label>
       <label>Employee ID<input required inputMode="numeric" value={p.workerId} onChange={e=>p.setWorkerId(e.target.value)} placeholder="e.g. 1"/></label>
       <label className="span">Employee wallet address<input required value={p.payout} onChange={e=>p.setPayout(e.target.value.trim())} placeholder="0x… from the employee app"/></label>
-      <label>Hourly rate ({p.asset})<input required inputMode="decimal" value={p.rate} onChange={e=>p.setRate(e.target.value)} placeholder="5"/></label>
+      {kind==='shift'?<label>Hourly rate ($)<input required inputMode="decimal" value={p.rate} onChange={e=>p.setRate(e.target.value)} placeholder="5"/></label>
+      :<label>Monthly salary ($)<input required inputMode="decimal" value={f.monthly} onChange={set('monthly')} placeholder="3000"/><small className="b-fine">{f.monthly&&Number(f.monthly)>0?'≈ $'+(Number(f.monthly)/SALARY_HOURS_PER_MONTH).toFixed(4)+' per hour, $'+(Number(f.monthly)/30/86400).toFixed(6)+' per second':'Earned evenly over a 30-day month, every second'}</small></label>}
       <label>Tax withholding (%)<input required inputMode="decimal" value={p.bps===''?'':Number(p.bps)/100} onChange={e=>p.setBps(e.target.value===''?'':String(Math.round(Number(e.target.value)*100)))} placeholder="10"/></label>
-      <label>Initial allocation ({p.asset})<input required inputMode="decimal" value={f.allocation} onChange={set('allocation')} placeholder="10"/></label>
+      <label>{kind==='salary'?'Fund now ($, default: one month)':'Initial allocation ($)'}<input required={kind==='shift'} inputMode="decimal" value={f.allocation} onChange={set('allocation')} placeholder={kind==='salary'?(f.monthly||'one month'):'10'}/></label>
       <label className="span">Notes for the employee<textarea rows={2} maxLength={2000} value={f.notes} onChange={set('notes')}/></label>
       <label className="b-check span"><input type="checkbox" checked={gas} onChange={e=>setGas(e.target.checked)}/>Send 0.1 test MON so the employee can pay network fees to send and cash out AUSD</label>
       <p className="b-fine span">Withholding is a company-chosen reserve rate held in escrow; ShiftPay does not calculate statutory tax.</p>
@@ -117,12 +126,12 @@ function EmployeeDetail({w,onClose}){
   const p=usePayroll(),[amount,setAmount]=useState(''),[feeHash,setFeeHash]=useState('');
   const loaded=p.worker&&p.selected===w.workerId;
   const x=loaded?{...w,worker:p.worker.worker,claimable:p.worker.claimable,earned:p.worker.earned,runwaySeconds:p.worker.runwaySeconds}:w;
-  const [label,tone]=status(x),on=x.worker.clockInAt!=='0';
+  const [label,tone]=status(x),on=x.worker.clockInAt!=='0',salaried=isSalaried(x.worker);
   return <section className="b-card"><div className="b-head"><div><h2>{name(w)}</h2><p className="b-muted">ID {w.workerId} · {w.profile?.role||'—'} · {w.profile?.department||'—'}</p></div><span className={'b-pill '+tone}>{label}</span></div>
     <div className="b-stats small"><Card label="Available now" value={p.units(x.claimable)}/><Card label="Earned" value={p.units(gross(x))}/><Card label="Funded" value={p.units(x.worker.funded)}/><Card label="Runway" value={(Number(x.runwaySeconds)/3600).toFixed(2)+' h'} tone={Number(x.runwaySeconds)<7200?'warn':''}/></div>
-    <dl className="b-dl"><dt>Wallet</dt><dd className="mono">{x.worker.payoutAddr}</dd><dt>Rate</dt><dd>{p.units(x.worker.ratePerHour)} / hour</dd><dt>Withholding</dt><dd>{Number(x.worker.withholdingBps)/100}%</dd>{w.profile?.notes&&<><dt>Notes</dt><dd>{w.profile.notes}</dd></>}</dl>
+    <dl className="b-dl"><dt>Wallet</dt><dd className="mono">{x.worker.payoutAddr}</dd><dt>Pay</dt><dd>{salaried?<>Monthly salary {p.units(BigInt(x.worker.ratePerHour)*BigInt(SALARY_HOURS_PER_MONTH))} · earned every second</>:<>{p.units(x.worker.ratePerHour)} / hour, during verified shifts</>}</dd><dt>Withholding</dt><dd>{Number(x.worker.withholdingBps)/100}%</dd>{w.profile?.notes&&<><dt>Notes</dt><dd>{w.profile.notes}</dd></>}</dl>
     {!loaded?<p className="b-muted">Loading live payroll state…</p>:<div className="b-actions">
-      <button className="b-primary" disabled={p.disabled||x.worker.flags!==1} onClick={()=>p.clock(on?'clock_out':'clock_in')}>{on?'End verified shift':'Start verified shift'}</button>
+      <button className="b-primary" disabled={p.disabled||x.worker.flags!==1} onClick={()=>p.clock(on?'clock_out':'clock_in')}>{salaried?(on?'End salary month (pays to date)':'Start salary month'):(on?'End verified shift':'Start verified shift')}</button>
       <form className="b-inline" onSubmit={e=>{e.preventDefault();p.fund(amount)}}><input inputMode="decimal" placeholder={'Add '+p.asset} value={amount} onChange={e=>setAmount(e.target.value)} required/><button disabled={p.disabled}>Fund</button></form>
       <button className="b-small ghost" disabled={p.busy||!!p.pending} onClick={()=>p.execute(async()=>{const w=await p.walletClient();setFeeHash('');const hash=await w.sendTransaction({to:x.worker.payoutAddr,value:parseEther('0.1')});if((await p.client.waitForTransactionReceipt({hash})).status!=='success')throw new Error('Fee transfer failed.');setFeeHash(hash);})}>{p.busy?'Working…':'Send 0.1 MON for fees'}</button>
       <button className="b-small ghost" disabled={p.disabled} onClick={()=>p.execute(()=>p.direct(x.worker.flags===1?'suspend':'reinstate',[BigInt(w.workerId)],x.worker.flags===1?'Suspend employee':'Reinstate employee'))}>{x.worker.flags===1?'Suspend':'Reinstate'}</button>

@@ -172,11 +172,11 @@ function Workspace({children}){
     }
     await direct('fundWorkers',[BigInt(cfg.employerId),[BigInt(selected)],[value]],'Payroll funding');
   });}
-  async function register(event,profile,allocation,gas=false){event.preventDefault();await execute(async()=>{
+  async function register(event,profile,allocation,gas=false,plan={}){event.preventDefault();await execute(async()=>{
     if(!admin)throw new Error('Use the registered company account.');if(!/^\d+$/.test(workerId)||BigInt(workerId)===0n||!isAddress(payout))throw new Error('Provide a positive worker ID and a valid payout wallet.');
     const tax=Number(bps);if(!Number.isInteger(tax)||tax<0||tax>10000)throw new Error('Withholding must be between 0 and 10000 basis points.');
     // Select the ID before writing so transaction tracking is scoped to the new worker.
-    const w=await walletClient();const {request}=await client.simulateContract({address:cfg.vault,abi,functionName:'createWorker',args:[BigInt(cfg.employerId),BigInt(workerId),positiveAmount(rate,cfg.decimals),tax,28800,payout],account:wallet.address});
+    const w=await walletClient();const {request}=await client.simulateContract({address:cfg.vault,abi,functionName:'createWorker',args:[BigInt(cfg.employerId),BigInt(workerId),positiveAmount(plan.rate??rate,cfg.decimals),tax,plan.maxShiftSeconds??28800,payout],account:wallet.address});
     const hash=await w.writeContract(request);setNotice(`Worker registration submitted · ${hash}`);
     const key=`shiftpay:${cfg.chainId}:${cfg.vault}:${wallet.address}:${workerId}`;localStorage.setItem(key,JSON.stringify({hash,label:'Worker registration'}));
     generation.current++;selection.current=workerId;setSelected(workerId);setPending({hash,label:'Worker registration'});setWorker(null);setFresh(false);

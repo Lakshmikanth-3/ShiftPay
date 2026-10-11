@@ -7,6 +7,7 @@ import {usePayroll} from './payroll.jsx';
 import PasskeyAccess from './passkey-access.jsx';
 import {testnetTokens} from '../lib/testnet-tokens.mjs';
 import {pitchUrl} from '../lib/pitch.mjs';
+import {isSalaried,SALARY_HOURS_PER_MONTH} from '../lib/pay-plans.mjs';
 import {unlockPayslipVault,openPayslips,sealPayslips} from '../lib/private-payslips.mjs';
 import {agora,agoraMonadMetrics,balances,instantSettle,parseAmount,quoteSettlement,requestAusd,sendToken} from '../lib/agora.mjs';
 
@@ -78,9 +79,9 @@ function Wages({w}){
   if(!p.worker||!p.owns)return <section className="m-card"><h3>Link your payroll</h3><p className="m-muted">Enter the employee ID your company gave you. Your passkey account must be the payout account they registered.</p>
     <form className="m-row" onSubmit={e=>{e.preventDefault();p.setWorkerId(id);p.choose(e,id)}}><input inputMode="numeric" placeholder="Employee ID" value={id} onChange={e=>setId(e.target.value)} required/><button className="m-primary" disabled={p.loading}>{p.loading?'…':'Link'}</button></form>
     {p.worker&&!p.owns&&<p className="m-alert error">Employee {p.selected} is registered to {short(p.worker.worker.payoutAddr)}, not this account.</p>}</section>;
-  const x=p.worker,on=x.worker.clockInAt!=='0';
-  return <section className="m-card wages"><div className="m-row between"><h3>Earned wages</h3><span className={'m-chip'+(on?' live':'')}>{on?'● On shift':'Off shift'}</span></div>
-    <strong className="m-amount">{p.units(x.claimable)}</strong><p className="m-muted">Available to withdraw now · employer funded, no fee</p>
+  const x=p.worker,on=x.worker.clockInAt!=='0',salaried=isSalaried(x.worker);
+  return <section className="m-card wages"><div className="m-row between"><h3>{salaried?'Salary earned':'Earned wages'}</h3><span className={'m-chip'+(on?' live':'')}>{salaried?(on?'● Salary · earning':'Salary paused'):(on?'● On shift':'Off shift')}</span></div>
+    <strong className="m-amount">{p.units(x.claimable)}</strong><p className="m-muted">Available to withdraw now · employer funded, no fee{salaried?<> · monthly salary {p.units(BigInt(x.worker.ratePerHour)*BigInt(SALARY_HOURS_PER_MONTH))}, earned every second</>:null}</p>
     <div className="m-stats"><div><span>Gross earned</span><b>{p.units(BigInt(x.earned.net)+BigInt(x.earned.tax))}</b></div><div><span>Tax set aside</span><b>{p.units(x.earned.tax)}</b></div><div><span>Withdrawn</span><b>{p.units(x.worker.withdrawn)}</b></div></div>
     <button className="m-primary wide" disabled={p.disabled||x.worker.flags!==1||BigInt(x.claimable)===0n} onClick={()=>{p.setAmount(formatUnits(BigInt(x.claimable),p.cfg.decimals));dialog.current.showModal()}}>Withdraw to my wallet</button>
     {p.pending&&<p className="m-alert" role="status">{p.pending.label}: confirming on Monad…</p>}
