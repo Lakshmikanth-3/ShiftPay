@@ -163,6 +163,58 @@ contract MetronomeVaultTest is Signatures {
         assertEq(vault.claimable(WORKER), 384 * USD / 10);
     }
 
+    // ───────────── monthly salary: one month-long accrual period ─────────────
+
+    function test_MonthlySalaryAccruesEverySecondAndCapsAtTheMonth() public {
+        uint256 salaried = 2;
+        uint128 hourly = uint128(3000 * USD / 720); // $3,000 over a 30-day month
+        vm.prank(admin);
+        vault.createWorker(employerId, salaried, hourly, BPS, 31 days, payout);
+        _fund(salaried, 3100 * USD);
+
+        uint64 start = uint64(vm.getBlockTimestamp());
+        uint256 shiftId = _open(salaried);
+        vm.warp(start + 1 days);
+        (,, uint256 dayGross) = vault.earned(salaried);
+        assertEq(dayGross, uint256(hourly) * 24, "one day of salary accrues");
+
+        // Mid-month withdrawal of what is already earned.
+        vm.warp(start + 15 days);
+        uint256 mid = vault.claimable(salaried);
+        assertGt(mid, 0);
+        vm.prank(payout);
+        vault.withdraw(salaried, mid);
+
+        // Accrual stops at the 31-day cap.
+        vm.warp(start + 40 days);
+        (,, uint256 capped) = vault.earned(salaried);
+        assertEq(capped, uint256(hourly) * 31 * 24, "accrual capped at the period");
+
+        // Closing at 30 days pays exactly one month of salary, less withholding.
+        uint64 end = start + 30 days;
+        uint64 deadline = uint64(vm.getBlockTimestamp()) + 60;
+        vault.closeShift(salaried, start, end, hourly, shiftId, deadline, _signClose(vault, attestorPk, salaried, start, end, hourly, shiftId, deadline));
+        (, uint256 withdrawn, uint256 net, uint256 tax,) = _state(salaried);
+        assertEq(net + tax, uint256(hourly) * 720, "one month gross");
+        assertLe(net + tax, 3000 * USD, "never more than the salary");
+        assertEq(vault.claimable(salaried), net - withdrawn, "remainder claimable");
+    }
+
+    function test_SalaryClosedEarlyPaysOnlyTimeWorked() public {
+        uint256 salaried = 3;
+        uint128 hourly = uint128(3000 * USD / 720);
+        vm.prank(admin);
+        vault.createWorker(employerId, salaried, hourly, BPS, 31 days, payout);
+        _fund(salaried, 3000 * USD);
+        uint64 start = uint64(vm.getBlockTimestamp());
+        uint256 shiftId = _open(salaried);
+        vm.warp(start + 10 days); // leaves after 10 days
+        uint64 deadline = uint64(vm.getBlockTimestamp()) + 60;
+        vault.closeShift(salaried, start, start + 10 days, hourly, shiftId, deadline, _signClose(vault, attestorPk, salaried, start, start + 10 days, hourly, shiftId, deadline));
+        (,, uint256 net, uint256 tax,) = _state(salaried);
+        assertEq(net + tax, uint256(hourly) * 240, "ten days of salary");
+    }
+
     // ───────────── worked example (docs/architecture.md) ─────────────
 
     function test_WorkedExampleReconciles() public {
