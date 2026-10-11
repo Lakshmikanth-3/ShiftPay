@@ -460,7 +460,7 @@ Privy was removed so Mera is the entire account layer.
 
 ### Should have
 - [x] Passkey login (Mera) and employer-sponsored gas
-- [ ] Withholding remittance flow — `remitWithholding` in the contract and tested; no dashboard button yet
+- [x] Withholding remittance flow: "Send to tax account" on the business Funding page calls `remitWithholding`
 - [ ] Over-estimate recovery demo
 - [ ] Clock-in/out PWA for workers — employer starts/ends verified shifts from the business dashboard instead
 

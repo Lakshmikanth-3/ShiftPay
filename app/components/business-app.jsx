@@ -111,6 +111,16 @@ function EmployeeDetail({w,onClose}){
   </section>;
 }
 
+/** Tax withheld from wages sits in escrow until the company sends it to its fixed tax account. */
+function TaxRemittance({workers}){
+  const p=usePayroll(),held=BigInt(p.dashboard?.heldTax??0);
+  const shards=[...new Set(workers.map(w=>BigInt(w.workerId)%64n))];
+  return <section className="b-card"><div className="b-head"><h2>Tax set aside</h2><span className="b-pill idle">{p.units(held)} held</span></div>
+    <p className="b-muted">Withholding from every verified shift is kept separately and can only go to your tax account{p.cfg?.taxAddress?' ('+short(p.cfg.taxAddress)+')':''}. Employees can never withdraw it.</p>
+    <div className="b-actions"><button className="b-primary" disabled={held===0n||!shards.length||p.busy||!!p.pending} onClick={()=>p.execute(()=>p.direct('remitWithholding',[BigInt(p.cfg.employerId),shards],'Tax remittance'))}>Send {p.units(held)} to tax account</button></div>
+  </section>;
+}
+
 function Funding({bal,reload}){
   const p=usePayroll(),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[copied,setCopied]=useState(false);
   async function faucet(){setBusy(true);setMsg('');try{const w=await p.walletClient();const hash=await requestAusd({client:p.client,wallet:w,account:p.wallet.address});setMsg('Agora faucet sent 10,000 test AUSD · '+hash);await reload();}catch(e){setMsg(e.shortMessage||e.message)}finally{setBusy(false)}}
@@ -141,7 +151,7 @@ export default function BusinessApp({section=''}){
   else if(open)body=<EmployeeDetail w={workers.find(w=>w.workerId===open.workerId)||open} onClose={()=>setOpen(null)}/>;
   else if(section==='employees')body=<>{adding?<AddEmployee onDone={()=>setAdding(false)}/>:<div className="b-toolbar"><button className="b-primary" onClick={()=>setAdding(true)}>+ Add employee</button></div>}<section className="b-card"><h2>Employees</h2><EmployeeTable workers={workers} onOpen={openWorker}/></section></>;
   else if(section==='shifts')body=<section className="b-card"><h2>Shifts</h2><p className="b-muted">Start and end verified shifts. Each one is signed by your company passkey and settled on Monad.</p><EmployeeTable workers={workers} onOpen={openWorker} actions/></section>;
-  else if(section==='funding')body=<><Funding bal={bal} reload={reload}/><section className="b-card"><h2>Employee allocations</h2><EmployeeTable workers={workers} onOpen={openWorker}/></section></>;
+  else if(section==='funding')body=<><Funding bal={bal} reload={reload}/><TaxRemittance workers={workers}/><section className="b-card"><h2>Employee allocations</h2><EmployeeTable workers={workers} onOpen={openWorker}/></section></>;
   else if(section==='payments')body=<><IndexerBadge/><div className="b-legacy"><PaymentLedger/></div></>;
   else if(section==='settings')body=<><div className="b-legacy"><ProfileEditor/></div><section className="b-card"><h2>Payroll contract</h2><dl className="b-dl"><dt>Vault</dt><dd className="mono">{p.cfg.vault}</dd><dt>Token</dt><dd className="mono">{p.cfg.token}</dd><dt>Tax recipient</dt><dd className="mono">{p.cfg.taxAddress}</dd><dt>Employer ID</dt><dd>{p.cfg.employerId}</dd></dl><Link className="b-small ghost" href="/deploy">Company setup</Link></section></>;
   else body=<><Totals workers={workers}/><div className="b-grid"><section className="b-card"><div className="b-head"><h2>Workforce</h2><Link className="b-small ghost" href="/employer/employees">Manage</Link></div><EmployeeTable workers={workers.slice(0,6)} onOpen={openWorker}/></section><Funding bal={bal} reload={reload}/></div></>;

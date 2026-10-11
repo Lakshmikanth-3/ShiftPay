@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo.png" alt="ShiftPay" width="180"></p>
+
 # ShiftPay
 
 Get paid for the hours you have already worked, the moment you work them, on Monad.
