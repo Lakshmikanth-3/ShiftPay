@@ -28,6 +28,7 @@ is built for. The money is already theirs; only the payment timing was wrong.
 | Business website | https://shiftpay-business.vercel.app |
 | Employee mobile wallet | https://shiftpay-employee.vercel.app |
 | USDC payroll vault | [`0xA1C794EA48A1D86294848D28E85c76328070DB24`](https://testnet.monadexplorer.com/address/0xA1C794EA48A1D86294848D28E85c76328070DB24) |
+| AUSD payroll vault | [`0xc118d4E298284192DAabE328eC236c3468a9E185`](https://testnet.monadexplorer.com/address/0xc118d4E298284192DAabE328eC236c3468a9E185) |
 
 ---
 

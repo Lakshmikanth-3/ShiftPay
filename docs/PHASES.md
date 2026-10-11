@@ -32,7 +32,7 @@ The payroll bridge runs inside the business Vercel project (`/api/bridge/*`) on 
 5. Pending: register the employee with an allocation and 0.1 MON for fees.
 6. Pending: verified shift, growing balance, relayed withdrawal, employer ledger and withholding.
 7. Pending: exhaustion and top-up with real allocations; retain transaction evidence.
-8. Pending: AUSD vault (fund relayer `0x2FcE83C7Ea6708e831F9D5bD9F12A8154587CfAD`, deploy from `/deploy`, run `node scripts/configure-vercel.cjs ausd …`, redeploy).
+8. Done: AUSD vault `0xc118d4E298284192DAabE328eC236c3468a9E185` (block 70080159) connected. Previously pending: AUSD vault (fund relayer `0x2FcE83C7Ea6708e831F9D5bD9F12A8154587CfAD`, deploy from `/deploy`, run `node scripts/configure-vercel.cjs ausd …`, redeploy).
 
 The earlier external address `0x4e3f8497F732326CFB8cC4d17Ad0688b74582776` remains the testnet tax recipient. It is not the Mera administrator.
 

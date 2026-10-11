@@ -92,7 +92,7 @@ code https://github.com/Lakshmikanth-3/ShiftPay
 | 1. Safe payroll contract | Done | 36 unit and fuzz tests, 5 invariants (solvency, conservation, no unbacked claims, monotonic totals, all earnings funded) |
 | 2. Business website and employee app | Done, live | Passkey-only accounts (Privy removed), plain dollar wording, mobile layout, pitch deck button |
 | 3. Hosting | Done, live | Payroll service inside the business Vercel project on Neon Postgres; employee app relays to it; public RPC fallbacks and caching for speed |
-| 4. Real testnet run | In progress | USDC vault `0xA1C794EA48A1D86294848D28E85c76328070DB24` (block 69456787, employer 1); employee 1 registered; funding fix deployed; full payroll cycle with the owner's passkey still to run; AUSD payroll vault not deployed |
+| 4. Real testnet run | In progress | USDC vault `0xA1C794EA48A1D86294848D28E85c76328070DB24` (block 69456787, employer 1); employee 1 registered; funding fix deployed; full payroll cycle with the owner's passkey still to run; AUSD payroll vault `0xc118d4E298284192DAabE328eC236c3468a9E185` live (block 70080159) |
 | 5. Sponsor proof, user testing, videos, submission | In progress | Agora send-abroad, direct send and cash-out confirmed on chain by the automated agent; user tests and videos pending |
 
 **Automated proof:** `npm run test:agent` drives both live sites with a virtual passkey and passed 26/26 checks on
@@ -109,7 +109,7 @@ Not eligible: Best Community Team (campus not on the onboarded list). Envio: liv
 2. Done: Envio HyperSync indexing live and the Envio bounty added.
 3. Owner: make the GitHub repository public, or invite metropolis@hackathon.monad.xyz.
 4. Owner: five-person user test ([USER_TESTING.md](USER_TESTING.md)).
-5. Deploy the AUSD payroll vault and repeat the cycle in AUSD.
+5. Done: AUSD payroll vault live; judge companies can fund payroll with free AUSD from Agora's faucet.
 6. Record the technical demo (≤3 min) and pitch (≤2 min) videos; add the logo; submit.
 
 ### Known limits
