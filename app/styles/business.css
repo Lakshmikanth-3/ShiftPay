@@ -62,3 +62,6 @@
 .b-seg button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:14px 16px;border:2px solid var(--b-line);border-radius:14px;background:#fff;cursor:pointer;text-align:left;font:inherit}
 .b-seg button b{font-size:15px}.b-seg button small{color:var(--b-muted);font-size:12px}
 .b-seg button.on{border-color:var(--b-brand);background:#f4f9ec}
+/* Sidebar Sign out: light text on the dark sidebar (overrides the ghost button ink colour). */
+.b-side .b-account .b-small.ghost{color:#f3f4ee;border-color:#ffffff55;background:transparent}
+.b-side .b-account .b-small.ghost:hover{background:#ffffff1a}
