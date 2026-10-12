@@ -48,10 +48,17 @@ function GasNote({w}){if(!w.bal||w.bal.MON>=lowFee)return null;return <p classNa
 
 /** Employer-paid gas: a registered employee with an empty fee balance gets a small top-up from the payroll relayer. */
 function useSponsoredGas(w){
-  const p=w.p,asked=useRef('');
-  useEffect(()=>{const key=(p.owns?p.selected:'new')+':'+w.account;if(!w.account||!w.bal||w.bal.MON>=lowFee||asked.current===key)return;asked.current=key;
-    p.api('gas-grants',p.owns?{workerId:p.selected}:{address:w.account}).then(r=>{if(r.granted){w.addActivity({type:'Free fee credit added',amount:'+fees',symbol:'',hash:r.hash});w.refresh();}}).catch(()=>{asked.current='';});
-  },[p.owns,p.selected,w.bal?.MON,w.account]);
+  const p=w.p,done=useRef(''),[tick,setTick]=useState(0);
+  useEffect(()=>{const key=(p.owns?p.selected:'new')+':'+w.account;if(!w.account||!w.bal||w.bal.MON>=lowFee||done.current===key)return;
+    let live=true;
+    // Keep asking until the server gives a definite answer; a transient network error just retries in 5 seconds.
+    p.api('gas-grants',p.owns?{workerId:p.selected}:{address:w.account}).then(r=>{if(!live)return;
+      if(r.granted){done.current=key;w.addActivity({type:'Free fee credit added',amount:'+fees',symbol:'',hash:r.hash});w.refresh();}
+      else if(['sufficient','already','recent','daily_cap'].includes(r.reason))done.current=key;
+      else setTimeout(()=>live&&setTick(t=>t+1),5000);
+    }).catch(()=>{if(live)setTimeout(()=>setTick(t=>t+1),5000);});
+    return()=>{live=false};
+  },[p.owns,p.selected,w.bal?.MON,w.account,tick]);
 }
 
 function Login(){
