@@ -38,10 +38,12 @@ is built for. The money is already theirs; only the payment timing was wrong.
 
 | Step | What the owner does | What happens underneath |
 |---|---|---|
-| Sign in | Unlock company passkey | The passkey's PRF output is turned into the company key in the browser tab, wiped after 15 minutes |
+| Sign in | Unlock company passkey, or **create one** with a single scan | The passkey's PRF output is turned into the company key in the browser tab, wiped after 15 minutes |
+| Create a company | Name it; one step | `createEmployer` on the shared vault with ShiftPay's attestor; a free fee credit covers the gas. Any business (or judge) can self-onboard |
 | Get money | Get 10,000 test AUSD, or test USDC | Agora's faucet `requestFunds` is called and signed by the passkey |
-| Hire | Add employee: wallet, rate, tax %, allocation | `createWorker`, then `fundWorkers`, then a signed profile save |
-| Verify work | Start / end verified shift | A signed clock intent goes to the payroll service, whose attestor signs and whose relayer submits |
+| Hire | Add employee: **Shift pay** (hourly) or **Monthly salary**, wallet, tax %, allocation | `createWorker` (salary = monthly ÷ 720 h, 31-day period), then `fundWorkers`, then a signed profile save |
+| Verify work | Start / end verified shift, or start / end the salary month | A signed clock intent goes to the payroll service, whose attestor signs and whose relayer submits |
+| Pay tax | Funding → Send to tax account | `remitWithholding` moves escrowed tax to the fixed tax address |
 | Watch | Overview, payments, tax escrow | Vault events indexed into Postgres; balances read live from the vault |
 
 ### Two pay types
@@ -149,7 +151,7 @@ while time passes, so a ticking balance costs nothing.
 |---|---|
 | `MetronomeVault.sol` | Employers, workers, funding, signed shifts and corrections, withdrawals, tax escrow and remittance |
 | `ShardVault.sol` | Minimal clone per shard that holds tokens |
-| `test/MetronomeVault.t.sol` | 36 unit and fuzz tests |
+| `test/MetronomeVault.t.sol` | 38 unit and fuzz tests, including month-long salary accrual |
 | `test/invariant/` | 5 stateful invariants: solvency, conservation, no unbacked claims, monotonic totals, all earnings funded |
 
 ---
@@ -205,7 +207,9 @@ business Next.js app and served from `/api/bridge/*`.
 |---|---|
 | No resident process | After each request, `Submitter.settle()` submits queued transactions and waits for receipts within the function's time budget. Unfinished work resumes on the next request. |
 | Database | Neon Postgres through the Vercel Marketplace, one schema per token. Prisma migrations run during the build. |
-| Monad RPC limits | `eth_getLogs` is capped at 100 blocks and the public RPC at 25 requests/second. Vault events are indexed in paced parallel batches, and the cursor persists in Postgres so every function instance resumes where the last stopped. |
+| Indexing | **Envio HyperSync** feeds vault events into Postgres with a persisted cursor (the public RPC caps `eth_getLogs` at 100 blocks). `/api/bridge/health` reports `envio-hypersync ok` |
+| RPC | A dedicated Alchemy Monad endpoint first, with public Monad RPCs as automatic fallbacks, plus short read caches |
+| Many companies | Serves every company that registered ShiftPay's attestor; self-serve companies have daily sponsored-gas budgets |
 | Employee site | Relays to the business project with a shared secret. One payroll service, one source of truth. |
 | Startup checks | Chain id, vault bytecode, settlement token, decimals, registered attestor and expected admin are verified before serving. A mismatch refuses to start. |
 
@@ -233,7 +237,18 @@ employer more per dollar paid.
 
 ---
 
-## 6. Configuration and deployment
+## 6. Proof on Monad testnet
+
+| What | Result |
+|---|---|
+| Live agent (`npm run test:agent`) | 26/26 checks on the deployed sites with a virtual passkey: onboarding, fee credit, Agora faucet, send abroad via Instant Settlement, direct send, cash out, payslips, stateless re-login, judge creates a company |
+| Monthly salary, owner's own run | 2,592 AUSD/month employee; salary accrued every second; mid-month withdrawal `0x350d5fc1…f524fa` paid by the company's relayer |
+| Shift-change benchmark | 16 workers × open/close/withdraw on a 64-shard vault and a single-storage control: 96 transactions, 0 failures, p50 ≈ 2 s. At this size the designs perform the same; see [benchmark/README.md](benchmark/README.md) |
+| Security review | [docs/SECURITY.md](docs/SECURITY.md): automated checks, fixes and known limits |
+
+---
+
+## 7. Configuration and deployment
 
 ### Prerequisites
 
@@ -285,10 +300,11 @@ variables. Nothing secret is `NEXT_PUBLIC`.
 
 | Command | Where | Covers |
 |---|---|---|
-| `forge test` | `contracts` | 36 unit/fuzz tests, 5 invariants |
-| `npm run typecheck && npm test` | `bridge` | Types, unit and Postgres integration |
-| `npm test` | `app` | 31 tests, including live read-only checks against Agora's contracts |
+| `forge test` | `contracts` | 43 tests: 38 unit/fuzz (including month-long salary) + 5 invariants |
+| `npm run typecheck && npm test` | `bridge` | Types, unit, Envio and Postgres integration |
+| `npm test` | `app` | 42 tests: passkeys, funding, Agora (live read-only), private payslips, pay plans |
 | `npm run test:live` | `app` | Both deployments: health, config vs chain, route separation, origin checks |
+| `npm run test:agent` | `app` | Headless Chrome with a virtual passkey drives both live sites end to end |
 
 ---
 
@@ -298,7 +314,7 @@ variables. Nothing secret is `NEXT_PUBLIC`.
 contracts/   MetronomeVault, ShardVault, tests and invariants
 bridge/      payroll service: attestor, relayer, indexer, Prisma schema
 app/         Next.js: app/ routes, components/, lib/, styles/, scripts/, tests/
-benchmark/   shift-change benchmark procedure and local harness results
+benchmark/   shift-change benchmark procedure, local and Monad testnet results
 docs/        PRD, architecture, trust model, setup, phases, demo, submission
 ```
 
@@ -308,6 +324,8 @@ docs/        PRD, architecture, trust model, setup, phases, demo, submission
 - [`docs/architecture.md`](docs/architecture.md): the full ledger and accounting rules
 - [`docs/trust-model.md`](docs/trust-model.md): failure bounds for each key
 - [`docs/PHASES.md`](docs/PHASES.md): what is verified live and what remains
+- [`docs/SECURITY.md`](docs/SECURITY.md): security and code-quality review
+- [`docs/BOUNTIES.md`](docs/BOUNTIES.md): track and bounty requirements, line by line
 - [`docs/DEMO.md`](docs/DEMO.md): the demo script
 
 Built for Monad Metropolis, Track 02 Consumer Products & Payments. MIT licence.
