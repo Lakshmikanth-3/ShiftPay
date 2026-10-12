@@ -65,3 +65,10 @@
 /* Sidebar Sign out: light text on the dark sidebar (overrides the ghost button ink colour). */
 .b-side .b-account .b-small.ghost{color:#f3f4ee;border-color:#ffffff55;background:transparent}
 .b-side .b-account .b-small.ghost:hover{background:#ffffff1a}
+/* Sidebar: left-aligned menu with a fixed icon column; brand uses the ShiftPay mark. */
+.b-side nav{align-items:stretch;justify-content:flex-start;padding:0;max-width:none;margin:0}
+.b-side nav a{justify-content:flex-start;width:100%;box-sizing:border-box}
+.b-side nav a i{display:inline-flex;justify-content:center;width:22px;flex:none}
+.b-logo-img{display:block;width:64px;height:64px;border-radius:16px;margin:0 auto}
+.b-logo-img.small{width:34px;height:34px;border-radius:9px;margin:0}
+@media (max-width:860px){.b-side nav{flex-direction:row}.b-side nav a{width:auto}}

@@ -38,7 +38,7 @@ function CompanySetup(){
 function SignIn(){
   const p=usePayroll(),[name,setName]=useState('');
   return <div className="b-signin"><PitchLink className="b-pitch floating"/><div className="b-signin-card">
-    <div className="b-logo">S</div><h1>ShiftPay for Business</h1>
+    <img className="b-logo-img" src="/logo-mark.png" alt="ShiftPay" width="64" height="64"/><h1>ShiftPay for Business</h1>
     <p>Fund payroll, verify shifts and pay employees as they earn on Monad.</p>
     <button className="b-primary wide" disabled={p.busy} onClick={()=>p.startMera(false)}>{p.busy?'Waiting for passkey…':'Unlock company passkey'}</button>
     {p.error&&<p className="b-alert error">{p.error}</p>}
@@ -191,7 +191,7 @@ export default function BusinessApp({section=''}){
   else if(section==='settings')body=<><div className="b-legacy"><ProfileEditor/></div><section className="b-card"><h2>Payroll contract</h2><dl className="b-dl"><dt>Vault</dt><dd className="mono">{p.cfg.vault}</dd><dt>Token</dt><dd className="mono">{p.cfg.token}</dd><dt>Tax recipient</dt><dd className="mono">{p.cfg.taxAddress}</dd><dt>Employer ID</dt><dd>{p.cfg.employerId}</dd></dl><Link className="b-small ghost" href="/deploy">Company setup</Link></section></>;
   else body=<><Totals workers={workers}/><div className="b-grid"><section className="b-card"><div className="b-head"><h2>Workforce</h2><Link className="b-small ghost" href="/employer/employees">Manage</Link></div><EmployeeTable workers={workers.slice(0,6)} onOpen={openWorker}/></section><Funding bal={bal} reload={reload}/></div></>;
   return <div className="b-shell">
-    <aside className="b-side"><Link className="b-brand" href="/employer"><span className="b-logo small">S</span>ShiftPay</Link>
+    <aside className="b-side"><Link className="b-brand" href="/employer"><img className="b-logo-img small" src="/logo-mark.png" alt="" width="34" height="34"/>ShiftPay</Link>
       <nav aria-label="Business navigation">{nav.map(([k,l,i])=><Link key={k} href={'/employer'+(k?'/'+k:'')} aria-current={section===k?'page':undefined}><i>{i}</i>{l}</Link>)}</nav>
       <PitchLink/><div className="b-account"><span>Company account</span><b className="mono">{short(p.wallet.address)}</b><button className="b-small ghost" onClick={()=>p.logout().catch(()=>{})}>Sign out</button></div></aside>
     <main className="b-main"><header className="b-top"><div><p className="b-eyebrow">{p.dashboard?.company?.name||'Business payroll'}</p><h1>{title}</h1></div>

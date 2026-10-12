@@ -56,3 +56,5 @@
 .m-seg button.on{background:#fff;color:var(--m-brand);box-shadow:0 1px 3px #0001}
 .m-unit{padding:13px 14px;border:1px solid var(--m-line);border-radius:12px;background:var(--m-bg);font-weight:700}
 .m-payid{font-size:22px;font-weight:800;letter-spacing:.06em;margin:8px 0}
+.m-logo-img{display:block;width:72px;height:72px;border-radius:20px;margin:0 auto}
+.m-logo-img.small{width:30px;height:30px;border-radius:8px;margin:0}
