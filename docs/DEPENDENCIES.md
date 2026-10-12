@@ -1,11 +1,19 @@
 # Dependency disclosures
 
-App: Next.js, React/React DOM, Privy React SDK, viem and esbuild. Privy email login and wallet onboarding require configured allowed origins. Browser public settings contain no backend secrets.
+**App** (`app/`): Next.js, React, viem, `@category-labs/mera` (Mera passkey SDK), `@scure/bip32`, `@scure/bip39`, qrcode,
+sharp, esbuild, Prisma client and Fastify (the bundled payroll service). `@privy-io/react-auth` remains in the lockfile but
+is no longer imported or shipped; Mera is the only account layer.
 
-Bridge: Fastify, Prisma/Postgres, viem, Zod, dotenv and tsx; TypeScript and Vitest for verification. The server assumes one bridge process per database and employer configuration; deploy multiple workers only after adding distributed coordination.
+**Payroll service** (`bridge/`): Fastify, Prisma with Postgres, viem, Zod, dotenv and tsx; TypeScript and Vitest for
+verification.
 
-Contracts: Solidity 0.8.28, OpenZeppelin Contracts 5.1.0 and forge-std/Foundry. Reproducible npm versions are recorded in each package lockfile; compiler settings are in `contracts/foundry.toml`.
+**Contracts** (`contracts/`): Solidity, OpenZeppelin Contracts and forge-std / Foundry. `MockERC20` and the standard
+public Anvil development mnemonic are used only in local tests; `NaiveVault` is a benchmark control, not a product contract.
 
-Sample preview typography uses externally hosted fonts; connected payroll uses the system font stack. MockERC20 and the standard public Anvil development mnemonic are used only for local testing. Benchmark control is an evaluation artifact, not a production payroll deployment.
+**External services**: Agora (AUSD token, testnet faucet, Instant Settlement pair and whitelister, public metrics API),
+Envio HyperSync (payroll event indexing), Alchemy and public Monad RPCs, Vercel hosting and Neon Postgres.
 
-Review each dependency's packaged licence and hackathon disclosure rules before submission. Do not present local timing results as measured Monad parallel execution.
+Exact versions are recorded in each package lockfile; compiler settings are in `contracts/foundry.toml`.
+Each dependency is used under its own published licence. ShiftPay is MIT-licensed.
+
+**AI tools**: Claude Code (Anthropic) assisted with code, tests, documentation and deployment; disclosed in the README.

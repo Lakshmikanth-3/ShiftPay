@@ -308,6 +308,31 @@ variables. Nothing secret is `NEXT_PUBLIC`.
 
 ---
 
+## Originality, AI tools and third-party code
+
+**Built during the hackathon.** All ShiftPay code (contracts, payroll service and both apps) was written during Monad
+Metropolis, starting October 2026; no pre-existing product or codebase was used as a foundation. The commit history
+covers the build.
+
+**AI coding tools (disclosed as required).** The project was built with AI assistance: **Claude Code (Anthropic)** was
+used for code generation, refactoring, tests, documentation, deployment scripting and the pitch deck. All design
+decisions, testing on real devices and deployments were directed and reviewed by the team.
+
+**Third-party code and services** (all used under their own licences; see [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md)):
+
+| Used for | Library or service | Licence |
+|---|---|---|
+| Contracts | OpenZeppelin Contracts, forge-std / Foundry | MIT / MIT, Apache-2.0 |
+| Passkey accounts | `@category-labs/mera` (Mera), `@scure/bip32`, `@scure/bip39` | per package (see npm) / MIT |
+| Chain access | viem | MIT |
+| App | Next.js, React | MIT |
+| Payroll service | Fastify, Prisma, Zod, dotenv | MIT / Apache-2.0 / MIT / BSD-2-Clause |
+| QR codes, images | qrcode, sharp | MIT / Apache-2.0 |
+| Settlement and data | Agora AUSD, faucet, Instant Settlement contracts and public API; Envio HyperSync; Alchemy RPC | Sponsor services, used via public interfaces |
+| Hosting | Vercel, Neon Postgres | Hosted services |
+
+ShiftPay itself is released under the **MIT licence** ([LICENSE](LICENSE)).
+
 ## Repository
 
 ```
