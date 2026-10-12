@@ -138,7 +138,7 @@ function Send({w}){
   return <section className="m-card"><h2>Send money</h2><p className="m-muted">Send to family or anyone, anywhere. Settled instantly on Monad.</p>
     <div className="m-seg" role="radiogroup" aria-label="Delivery">
       <button type="button" role="radio" aria-checked={settle} className={settle?'on':''} onClick={()=>setMode('settle')}>Send abroad · instant</button>
-      <button type="button" role="radio" aria-checked={!settle} className={!settle?'on':''} onClick={()=>setMode('direct')}>Send AUSD / USDC</button>
+      <button type="button" role="radio" aria-checked={!settle} className={!settle?'on':''} onClick={()=>setMode('direct')}>Direct transfer</button>
     </div>
     <form className="m-form" onSubmit={submit}>
       <label>Recipient's pay ID (account number)<input value={to} onChange={e=>setTo(e.target.value.trim())} placeholder="0x…" required autoComplete="off"/></label>
