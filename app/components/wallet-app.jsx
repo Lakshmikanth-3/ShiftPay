@@ -72,19 +72,21 @@ function Login(){
 function Wages({w}){
   const p=w.p,[id,setId]=useState('');
   const key=w.account?'shiftpay:worker:'+p.asset+':'+w.account.toLowerCase():null;
-  const [finding,setFinding]=useState(false);
+  const [finding,setFinding]=useState(false),[lookup,setLookup]=useState(0);
+  // Until a payroll is linked, look again every few seconds so a newly added employee appears without a reload.
+  useEffect(()=>{if(!key||p.selected)return;const t=setInterval(()=>setLookup(n=>n+1),8000);return()=>clearInterval(t);},[key,p.selected]);
   useEffect(()=>{if(!key||!p.cfg||p.selected)return;let saved=null;try{saved=localStorage.getItem(key)}catch{}
     const open=id=>{p.setWorkerId(id);p.choose({preventDefault(){}},id)};
     if(saved){open(saved);return;}
     // Stateless recovery: nothing saved on this device, so find the payroll registered to this passkey's address.
     // Look in this currency first, then the other one: the employee never has to know which payroll they are on.
-    setFinding(true);p.api('workers/by-address/'+w.account).then(async r=>{
+    if(!lookup)setFinding(true);p.api('workers/by-address/'+w.account).then(async r=>{
       if(r.workerIds?.length){open(r.workerIds[0]);return;}
       const other=p.asset==='AUSD'?'USDC':'AUSD';
       const res=await fetch('/api/bridge/workers/by-address/'+w.account+'?asset='+other,{cache:'no-store'});const o=res.ok?await res.json():{};
       if(o.workerIds?.length)p.setAsset(other);
     }).catch(()=>{}).finally(()=>setFinding(false));
-  },[key,p.cfg]);
+  },[key,p.cfg,lookup]);
   useEffect(()=>{if(key&&p.owns&&p.selected)try{localStorage.setItem(key,p.selected)}catch{}},[key,p.owns,p.selected]);
   const dialog=useRef(null);
   if(!p.cfg)return <section className="m-card"><h3>Payroll</h3><p className="m-muted">{p.error?.includes('pending')?'Your employer has not connected '+p.asset+' payroll yet.':p.error||'Connecting to payroll…'}</p><button className="m-ghost" onClick={p.configure}>Retry</button></section>;
