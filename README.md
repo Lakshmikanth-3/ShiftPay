@@ -244,7 +244,8 @@ employer more per dollar paid.
 | Live agent (`npm run test:agent`) | 26/26 checks on the deployed sites with a virtual passkey: onboarding, fee credit, Agora faucet, send abroad via Instant Settlement, direct send, cash out, payslips, stateless re-login, judge creates a company |
 | Monthly salary, owner's own run | 2,592 AUSD/month employee; salary accrued every second; mid-month withdrawal `0x350d5fc1…f524fa` paid by the company's relayer |
 | Shift-change benchmark | 16 workers × open/close/withdraw on a 64-shard vault and a single-storage control: 96 transactions, 0 failures, p50 ≈ 2 s. At this size the designs perform the same; see [benchmark/README.md](benchmark/README.md) |
-| Security review | [docs/SECURITY.md](docs/SECURITY.md): automated checks, fixes and known limits |
+| Security review | [docs/SECURITY.md](docs/SECURITY.md): automated checks, Slither triage, fixes and known limits |
+| Limitations and roadmap | [docs/LIMITATIONS.md](docs/LIMITATIONS.md): each known drawback, what is done now and what comes next |
 
 ---
 
@@ -350,6 +351,7 @@ docs/        PRD, architecture, trust model, setup, phases, demo, submission
 - [`docs/trust-model.md`](docs/trust-model.md): failure bounds for each key
 - [`docs/PHASES.md`](docs/PHASES.md): what is verified live and what remains
 - [`docs/SECURITY.md`](docs/SECURITY.md): security and code-quality review
+- [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md): known limitations and roadmap
 - [`docs/BOUNTIES.md`](docs/BOUNTIES.md): track and bounty requirements, line by line
 - [`docs/DEMO.md`](docs/DEMO.md): the demo script
 
