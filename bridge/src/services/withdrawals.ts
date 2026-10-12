@@ -4,6 +4,7 @@ import { types } from '../attestor.js';
 import { shardOf } from '../chain.js';
 import { HttpError, type Ctx } from '../context.js';
 import { requireServed, assertSponsoredBudget } from '../employers.js';
+import { assertWithdrawalPolicy } from './withdraw-policy.js';
 
 /** Typed data the worker's wallet signs to authorise a relayed withdrawal. */
 export async function withdrawTypedData(ctx: Ctx, workerId: bigint, amount: bigint) {
@@ -60,6 +61,7 @@ export async function relayWithdrawal(ctx: Ctx, input: WithdrawalInput) {
   if (input.amount > claimable) {
     throw new HttpError(422, `amount exceeds claimable (${claimable})`, 'exceeds_claimable');
   }
+  await assertWithdrawalPolicy(ctx, input.workerId, input.amount, claimable);
 
   const tx = await prisma.chainTx.create({
     data: {

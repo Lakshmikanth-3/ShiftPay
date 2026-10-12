@@ -314,6 +314,12 @@ describe('attestation bridge', () => {
     const over = await app.inject({ method: 'POST', url: '/withdrawals', payload: body(await sign(4, tooMuch), tooMuch) });
     expect(over.statusCode).toBe(422);
 
+    // Sponsored gas is not spent on dust: below the minimum (and not the whole balance) is refused.
+    const dust = { ...message, amount: USD / 2n };
+    const small = await app.inject({ method: 'POST', url: '/withdrawals', payload: body(await sign(4, dust), dust) });
+    expect(small.statusCode).toBe(422);
+    expect(small.json().error).toBe('below_minimum');
+
     const signature = await sign(4);
     const res = await app.inject({ method: 'POST', url: '/withdrawals', payload: body(signature) });
     expect(res.statusCode).toBe(202);

@@ -13,7 +13,7 @@ async function bridgeApi(path, body,asset) {
   const url=new URL('/api/bridge/'+path,window.location.origin);url.searchParams.set('asset',asset);
   const response = await fetch(url,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined,cache:'no-store'});
   const data = await response.json();
-  if(!response.ok) throw new Error(data.message || 'Payroll request failed');
+  if(!response.ok) throw Object.assign(new Error(data.message || 'Payroll request failed'),{code:data.error});
   return data;
 }
 const BUSY='The Monad network is busy. Wait a few seconds and try again; nothing was submitted twice.';
@@ -145,7 +145,11 @@ function Workspace({children}){
     const w=await walletClient();
     const message=Object.fromEntries(Object.entries(data.message).map(([key,value])=>[key,BigInt(value)]));
     const signature=await w.signTypedData({...data,message});
-    const result=await api('withdrawals',{workerId:selected,amount:value.toString(),deadline:message.deadline.toString(),signature});
+    let result;try{result=await api('withdrawals',{workerId:selected,amount:value.toString(),deadline:message.deadline.toString(),signature});}
+    catch(e){if(e.code!=='free_withdrawals_used')throw e;
+      // Weekly sponsored allowance used: withdraw straight from the vault; the daily worker gas grant covers the fee.
+      const {request}=await client.simulateContract({address:cfg.vault,abi,functionName:'withdraw',args:[BigInt(selected),value],account:wallet.address});
+      const hash=await w.writeContract(request);savePending({hash,label:'Withdrawal'});setNotice('Free withdrawals for this week are used, so this one was sent from your wallet (gas from your daily grant).');return;}
     savePending({txId:result.txId,label:'Withdrawal'});setNotice('Withdrawal queued. Your employer’s relayer pays gas.');
   });}
   async function clock(action){await execute(async()=>{

@@ -7,6 +7,7 @@ import { HttpError, type Ctx } from './context.js';
 import { handleClockEvent } from './services/clock.js';
 import { correctShift } from './services/corrections.js';
 import { relayWithdrawal, withdrawTypedData } from './services/withdrawals.js';
+import { withdrawalPolicy } from './services/withdraw-policy.js';
 import {dashboardRoutes} from './dashboard.js';
 import { requireServed, assertSponsoredBudget } from './employers.js';
 import { queryPayrollEvents } from './envio.js';
@@ -89,7 +90,7 @@ export function buildApp(ctx: Ctx): FastifyInstance {
       ctx.chain.publicClient.readContract({ address: token, abi: erc20Abi, functionName: 'symbol' }),
       requireServed(ctx, employerId),
     ]);
-    return { chainId: ctx.cfg.chainId, vault: ctx.chain.vault, employerId, token, decimals, symbol, admin: employer.admin, taxAddress: employer.taxAddress, attestor: ctx.attestor.address };
+    return { chainId: ctx.cfg.chainId, vault: ctx.chain.vault, employerId, token, decimals, symbol, admin: employer.admin, taxAddress: employer.taxAddress, attestor: ctx.attestor.address, withdrawalPolicy: withdrawalPolicy() };
   });
 
   // Browser clock events require the registered employer wallet, never a browser-held API secret.
