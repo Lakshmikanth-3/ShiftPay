@@ -5,7 +5,7 @@ import {monadTestnet} from 'viem/chains';
 import {metronomeVaultAbi as abi} from './abi/metronomeVault.js';
 import {HttpError,type Ctx} from './context.js';
 import {queryPayrollEvents} from './envio.js';
-import {requireServed,servedEmployer} from './employers.js';
+import {requireServed,servedEmployer,employerWorkerIds} from './employers.js';
 export const accessTypes={Access:[{name:'workerId',type:'uint256'},{name:'deadline',type:'uint64'},{name:'payloadHash',type:'bytes32'}]} as const;
 const dataSchema=z.object({companyName:z.string().trim().min(1).max(100).optional(),employee:z.object({workerId:z.string().regex(/^[1-9]\d*$/),name:z.string().trim().min(1).max(100),role:z.string().trim().min(1).max(100),department:z.string().trim().min(1).max(100),notes:z.string().max(2000).optional()}).strict().optional()}).strict();
 const requestSchema=z.object({address:z.string().refine(isAddress),employerId:z.string().regex(/^[1-9]\d*$/).optional(),workerId:z.string().regex(/^\d+$/),deadline:z.string().regex(/^\d+$/),signature:z.string().refine(isHex),data:dataSchema}).strict();
@@ -92,6 +92,9 @@ export function dashboardRoutes(app:FastifyInstance,ctx:Ctx){
     else results=await Promise.all(calls.map(call=>ctx.chain.publicClient.readContract({...call,blockNumber:block.number!} as any)));
     return workerIds.map((id,index)=>{const [v,earned,claimable,remaining,runway,owedBack]=results.slice(index*6,index*6+6);return {workerId:id,worker:{ratePerHour:v[0],funded:v[1],withdrawn:v[2],netSettled:v[3],taxSettled:v[4],taxEscrowed:v[5],clockInAt:v[6],nonce:v[7],employerId:v[8],maxShiftSeconds:v[9],withholdingBps:v[10],flags:v[11],payoutAddr:v[12],openShiftId:v[13]},earned:{net:earned[0],tax:earned[1],openGross:earned[2]},claimable,remaining,runwaySeconds:runway,owedBack,readAt:block.timestamp,blockNumber:block.number};});
   }
+  // Short-lived lookup cache: repeated address lookups cannot be used to exhaust RPC quota.
+  const lookupCache=new Map<string,{at:number;value:unknown}>();
+
   /** Every worker id the index or profiles know about, across companies (each is re-checked on chain). */
   async function allWorkers(){
     const [created,profiles]=await Promise.all([
@@ -105,9 +108,10 @@ export function dashboardRoutes(app:FastifyInstance,ctx:Ctx){
   app.get<{Params:{address:string}}>('/employers/by-admin/:address',async(req)=>{
     if(!isAddress(req.params.address))throw new HttpError(400,'Invalid address.','bad_request');
     const count=await ctx.chain.publicClient.readContract({address:ctx.chain.vault,abi,functionName:'employerCount'}) as bigint;
-    const ids:string[]=[],address=req.params.address.toLowerCase();
+    const address=req.params.address.toLowerCase(),hit=lookupCache.get('e:'+address);if(hit&&Date.now()-hit.at<20_000)return hit.value;
+    const ids:string[]=[];
     for(let id=count;id>=1n;id--){const e=await servedEmployer(ctx,id);if(e&&e.admin.toLowerCase()===address)ids.push(id.toString());}
-    return {employerIds:ids};
+    const value={employerIds:ids};lookupCache.set('e:'+address,{at:Date.now(),value});return value;
   });
 
   app.post('/dashboard',async(req)=>{
@@ -140,11 +144,13 @@ export function dashboardRoutes(app:FastifyInstance,ctx:Ctx){
   /** Stateless recovery: the employee app finds its payroll from the passkey address alone. */
   app.get<{Params:{address:string}}>('/workers/by-address/:address',async(req)=>{
     if(!isAddress(req.params.address))throw new HttpError(400,'Invalid address.','bad_request');
+    const address=req.params.address.toLowerCase(),hit=lookupCache.get('w:'+address);
+    if(hit&&Date.now()-hit.at<20_000)return hit.value;
     await scan(4000).catch(()=>undefined);
-    const ids=await allWorkers(),address=req.params.address.toLowerCase(),matches:string[]=[];
+    const ids=await allWorkers(),matches:string[]=[];
     // Active workers only, newest first: a suspended record never shadows a fresh registration.
     for(const id of ids){const w=await ctx.chain.readWorker(BigInt(id));if(w.flags===1&&w.payoutAddr.toLowerCase()===address&&await servedEmployer(ctx,w.employerId))matches.push(id);}
-    return {workerIds:matches.sort((a,b)=>Number(BigInt(b)-BigInt(a)))};
+    const value={workerIds:matches.sort((a,b)=>Number(BigInt(b)-BigInt(a)))};lookupCache.set('w:'+address,{at:Date.now(),value});return value;
   });
 
   /**
@@ -173,8 +179,15 @@ export function dashboardRoutes(app:FastifyInstance,ctx:Ctx){
     if(w.flags!==1||!(await servedEmployer(ctx,w.employerId)))throw new HttpError(403,'Active registered employee required.','forbidden');
     const balance=await ctx.chain.publicClient.getBalance({address:w.payoutAddr});
     if(balance>=floor)return {granted:false,reason:'sufficient'};
-    const recent=await ctx.prisma.gasGrant.findFirst({where:{workerId,at:{gt:new Date(Date.now()-24*3600_000)}}});
+    const since=new Date(Date.now()-24*3600_000);
+    const recent=await ctx.prisma.gasGrant.findFirst({where:{workerId,at:{gt:since}}});
     if(recent)return {granted:false,reason:'recent',hash:recent.hash};
+    // Self-serve companies: at most 5 worker fee credits per day each, and 30 per day across all companies.
+    if(w.employerId!==ctx.cfg.employerId){
+      const ids=await employerWorkerIds(ctx,w.employerId);
+      if(await ctx.prisma.gasGrant.count({where:{workerId:{in:ids},at:{gt:since}}})>=5)return {granted:false,reason:'daily_cap'};
+    }
+    if(await ctx.prisma.gasGrant.count({where:{NOT:{workerId:{startsWith:'new:'}},at:{gt:since}}})>=30)return {granted:false,reason:'daily_cap'};
     const hash=await ctx.transfer(Number(BigInt(workerId)%64n),w.payoutAddr,grant);
     await ctx.prisma.gasGrant.create({data:{workerId,address:w.payoutAddr,amount:grant.toString(),hash}});
     await ctx.chain.publicClient.waitForTransactionReceipt({hash,timeout:30_000}).catch(()=>undefined);

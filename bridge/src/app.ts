@@ -8,7 +8,7 @@ import { handleClockEvent } from './services/clock.js';
 import { correctShift } from './services/corrections.js';
 import { relayWithdrawal, withdrawTypedData } from './services/withdrawals.js';
 import {dashboardRoutes} from './dashboard.js';
-import { requireServed } from './employers.js';
+import { requireServed, assertSponsoredBudget } from './employers.js';
 import { queryPayrollEvents } from './envio.js';
 
 const uint = z.union([z.string().regex(/^\d+$/), z.number().int().nonnegative()]).transform((v) => BigInt(v));
@@ -99,6 +99,7 @@ export function buildApp(ctx: Ctx): FastifyInstance {
     const worker = await ctx.chain.readWorker(body.workerId);
     if (worker.flags === 0) throw new HttpError(403, 'Worker is not registered', 'wrong_employer');
     const employer = await requireServed(ctx, worker.employerId);
+    await assertSponsoredBudget(ctx, worker.employerId);
     const valid = await verifyTypedData({ address: employer.admin, domain: { name: 'ShiftPayClock', version: '1', chainId: ctx.cfg.chainId, verifyingContract: ctx.chain.vault }, types: { Clock: [{ name: 'workerId', type: 'uint256' }, { name: 'action', type: 'uint8' }, { name: 'nonce', type: 'bytes32' }, { name: 'deadline', type: 'uint64' }] }, primaryType: 'Clock', message: { workerId: body.workerId, action: body.type === 'clock_in' ? 0 : 1, nonce: body.nonce as Hex, deadline: body.deadline }, signature: body.signature as Hex });
     if (!valid) throw new HttpError(401, 'Employer wallet signature required', 'bad_signature');
     const result = await handleClockEvent(ctx, { workerId: body.workerId, type: body.type === 'clock_in' ? 'CLOCK_IN' : 'CLOCK_OUT', idempotencyKey: `wallet:${body.nonce}` });
