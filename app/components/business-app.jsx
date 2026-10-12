@@ -31,7 +31,7 @@ function CompanySetup(){
       <label className="span">Company name<input required maxLength={100} value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Corner Café"/></label>
       <button className="b-primary span" disabled={p.busy}>{p.busy?'Creating on Monad…':'Create my company'}</button>
     </form>
-    <p className="b-fine">Tip: switch Currency to AUSD to fund payroll with free test dollars from Agora.</p>
+    <p className="b-fine">Tip: switch Currency to AUSD to fund payroll with free test AUSD from Agora.</p>
   </section>;
 }
 
@@ -111,10 +111,10 @@ function AddEmployee({onDone}){
       <label>Department<input required maxLength={100} value={f.department} onChange={set('department')}/></label>
       <label>Employee ID<input required inputMode="numeric" value={p.workerId} onChange={e=>p.setWorkerId(e.target.value)} placeholder="e.g. 1"/></label>
       <label className="span">Employee wallet address<input required value={p.payout} onChange={e=>p.setPayout(e.target.value.trim())} placeholder="0x… from the employee app"/></label>
-      {kind==='shift'?<label>Hourly rate ($)<input required inputMode="decimal" value={p.rate} onChange={e=>p.setRate(e.target.value)} placeholder="5"/></label>
-      :<label>Monthly salary ($)<input required inputMode="decimal" value={f.monthly} onChange={set('monthly')} placeholder="3000"/><small className="b-fine">{f.monthly&&Number(f.monthly)>0?'≈ $'+(Number(f.monthly)/SALARY_HOURS_PER_MONTH).toFixed(4)+' per hour, $'+(Number(f.monthly)/30/86400).toFixed(6)+' per second':'Earned evenly over a 30-day month, every second'}</small></label>}
+      {kind==='shift'?<label>Hourly rate ({p.asset})<input required inputMode="decimal" value={p.rate} onChange={e=>p.setRate(e.target.value)} placeholder="5"/></label>
+      :<label>Monthly salary ({p.asset})<input required inputMode="decimal" value={f.monthly} onChange={set('monthly')} placeholder="3000"/><small className="b-fine">{f.monthly&&Number(f.monthly)>0?'≈ '+(Number(f.monthly)/SALARY_HOURS_PER_MONTH).toFixed(4)+' '+p.asset+' per hour, '+(Number(f.monthly)/30/86400).toFixed(6)+' '+p.asset+' per second':'Earned evenly over a 30-day month, every second'}</small></label>}
       <label>Tax withholding (%)<input required inputMode="decimal" value={p.bps===''?'':Number(p.bps)/100} onChange={e=>p.setBps(e.target.value===''?'':String(Math.round(Number(e.target.value)*100)))} placeholder="10"/></label>
-      <label>{kind==='salary'?'Fund now ($, default: one month)':'Initial allocation ($)'}<input required={kind==='shift'} inputMode="decimal" value={f.allocation} onChange={set('allocation')} placeholder={kind==='salary'?(f.monthly||'one month'):'10'}/></label>
+      <label>{kind==='salary'?'Fund now ('+p.asset+', default: one month)':'Initial allocation ('+p.asset+')'}<input required={kind==='shift'} inputMode="decimal" value={f.allocation} onChange={set('allocation')} placeholder={kind==='salary'?(f.monthly||'one month'):'10'}/></label>
       <label className="span">Notes for the employee<textarea rows={2} maxLength={2000} value={f.notes} onChange={set('notes')}/></label>
       <label className="b-check span"><input type="checkbox" checked={gas} onChange={e=>setGas(e.target.checked)}/>Send 0.1 test MON so the employee can pay network fees to send and cash out AUSD</label>
       <p className="b-fine span">Withholding is a company-chosen reserve rate held in escrow; ShiftPay does not calculate statutory tax.</p>

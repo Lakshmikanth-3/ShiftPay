@@ -74,20 +74,20 @@ async function main(){
     await step('employee: one-prompt passkey onboarding (Mera PRF)',async()=>{
       // The headless virtual authenticator occasionally never answers the first ceremony; retry once on a fresh load.
       for(let attempt=1;attempt<=2;attempt++){const t0=Date.now();await e.fill('.passkey-access input','Agent Tester');await e.click('Create payroll passkey');
-        try{await e.waitFor(`document.body.innerText.includes('Digital dollars')`,25000,'home');return `${((Date.now()-t0)/1000).toFixed(1)}s${attempt>1?' (retry)':''}`;}
+        try{await e.waitFor(`document.body.innerText.includes('Wallet balance')`,25000,'home');return `${((Date.now()-t0)/1000).toFixed(1)}s${attempt>1?' (retry)':''}`;}
         catch(err){if(attempt===2)throw err;await e.goto(EMPLOYEE+'/employee');await e.waitFor(`document.body.innerText.includes('Create payroll passkey')`,60000,'sign-in');}}});
-    await step('employee: no crypto wording on home',async()=>{const t=await e.text();for(const bad of [' MON','0x','Testnet','Wallet balance','AUSD','CTK'])if(t.includes(bad))throw new Error('found '+bad);});
+    await step('employee: no crypto wording on home',async()=>{const t=await e.text();for(const bad of [' MON','0x','Testnet'])if(t.includes(bad))throw new Error('found '+bad);});
     await step('employee: receive shows address and QR',async()=>{await e.click('Receive');await e.waitFor(`document.querySelector('.m-qr')`,30000,'qr');
       address=await e.eval(`document.querySelector('.m-mono')?.textContent.trim()||''`);if(!/^0x[0-9a-fA-F]{40}$/.test(address))throw new Error('no address');return address;});
     const unlock=async()=>{if(await e.eval(`document.body.innerText.includes('Unlock payroll passkey')`)){await e.click('Unlock payroll passkey');await e.waitFor(`!document.body.innerText.includes('Unlock payroll passkey')`,60000,'unlock');}};
     await step('employee: automatic fee credit for a new account',async()=>{await e.tab('Home');await e.waitFor(`document.body.innerText.includes('Fee credit ready')`,90000,'fee credit');});
-    await step('employee: add test dollars (Agora faucet)',async()=>{await e.click('Add test $');await e.waitFor(`document.body.innerText.includes('10,000 test dollars added')`,90000,'faucet');});
+    await step('employee: add test dollars (Agora faucet)',async()=>{await e.click('Get AUSD');await e.waitFor(`document.body.innerText.includes('10,000 test AUSD added')`,90000,'faucet');});
     const lastTx=()=>e.eval(`[...document.querySelectorAll('.m-success a')].map(a=>a.href.split('/tx/')[1]).filter(Boolean).pop()||''`);
     await step('employee: send abroad through Agora Instant Settlement',async()=>{await e.click('Send');await e.waitFor(`document.body.innerText.includes('Send abroad · instant')`);
-      await e.fill('.m-form input[placeholder="0x…"]',RECIPIENT);await e.fill('.m-form input[placeholder="0.00"]','1');await e.click('Send money');
+      await e.fill('.m-form input[placeholder="0x…"]',RECIPIENT);await e.fill('.m-form input[placeholder="0.00"]','1');await e.click('Send AUSD');
       await e.waitFor(`document.querySelector('.m-success')`,120000,'settlement');const h=await lastTx();if(!h||!await receiptOk(h))throw new Error('receipt failed '+h);txs.push({step:'send-abroad',hash:h});return h;});
-    await step('employee: send digital dollars directly',async()=>{await e.click('Send dollars');await e.fill('.m-form input[placeholder="0x…"]',RECIPIENT);await e.fill('.m-form input[placeholder="0.00"]','1');await e.click('Send money');
-      await e.waitFor(`document.querySelectorAll('.m-success').length&&document.querySelector('.m-success').innerText.includes('they received $1')`,90000,'transfer');const h=await lastTx();if(!await receiptOk(h))throw new Error('receipt failed');txs.push({step:'send-direct',hash:h});return h;});
+    await step('employee: send digital dollars directly',async()=>{await e.click('Send AUSD / USDC');await e.fill('.m-form input[placeholder="0x…"]',RECIPIENT);await e.fill('.m-form input[placeholder="0.00"]','1');await e.click('Send AUSD');
+      await e.waitFor(`document.querySelectorAll('.m-success').length&&document.querySelector('.m-success').innerText.includes('they received 1 AUSD')`,90000,'transfer');const h=await lastTx();if(!await receiptOk(h))throw new Error('receipt failed');txs.push({step:'send-direct',hash:h});return h;});
     await step('employee: cash out with Instant Settlement',async()=>{await e.click('Cash out');await e.waitFor(`document.body.innerText.includes('Settle instantly')`);await e.fill('.m-form input[placeholder="0.00"]','1');await e.waitFor(`document.querySelector('.m-quote b')?.innerText.includes('local')`);await e.click('Settle instantly');
       await e.waitFor(`document.querySelector('.m-success')`,120000,'cash out');const h=await lastTx();if(!await receiptOk(h))throw new Error('receipt failed');txs.push({step:'cash-out',hash:h});return h;});
     await step('employee: Agora public API data shown',async()=>{await e.waitFor(`document.body.innerText.includes('live from Agora')`,30000,'agora metrics');});
@@ -95,7 +95,7 @@ async function main(){
       if(await e.eval(`document.body.innerText.includes('Link your payroll first')`))return 'skipped save: account not registered by an employer; opening vault only';});
     await step('employee: open private payslips',async()=>{await e.click('Open payslips');await e.waitFor(`document.body.innerText.includes('No payslips saved yet')||document.querySelector('.m-list li')`,60000,'open');});
     await step('employee: stateless test (clear storage, same passkey)',async()=>{await e.eval('localStorage.clear(),sessionStorage.clear(),true');await e.goto(EMPLOYEE+'/employee');await e.waitFor(`document.body.innerText.includes('Unlock payroll passkey')||document.body.innerText.includes('Create payroll passkey')`);
-      await e.click('Unlock payroll passkey');await e.waitFor(`document.body.innerText.includes('Digital dollars')`,60000,'home');await e.click('Receive');await e.waitFor(`document.querySelector('.m-mono')`);
+      await e.click('Unlock payroll passkey');await e.waitFor(`document.body.innerText.includes('Wallet balance')`,60000,'home');await e.click('Receive');await e.waitFor(`document.querySelector('.m-mono')`);
       const again=await e.eval(`document.querySelector('.m-mono').textContent.trim()`);if(again!==address)throw new Error('address changed '+again);return 'same address '+again;});
     // Chrome's virtual authenticator cannot export a credential's PRF secret, so a true second device is not
     // simulated here; synced platform passkeys carry it. The stateless test above proves re-derivation.

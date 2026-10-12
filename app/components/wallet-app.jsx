@@ -98,16 +98,16 @@ function Wages({w}){
 
 function Home({w}){
   const p=w.p,b=w.bal;useSponsoredGas(w);
-  async function faucet(){const hash=await w.run('Adding test dollars',wallet=>requestAusd({client:p.client,wallet,account:w.account}));if(hash){w.addActivity({type:'Test dollars added',amount:'+10,000',symbol:'USD',hash});w.setStatus('10,000 test dollars added.')}}
+  async function faucet(){const hash=await w.run('Adding test AUSD',wallet=>requestAusd({client:p.client,wallet,account:w.account}));if(hash){w.addActivity({type:'Test AUSD added',amount:'+10,000',symbol:'AUSD',hash});w.setStatus('10,000 test AUSD added.')}}
   return <>
-    <section className="m-balance"><p>Digital dollars</p><strong>${b?fmt(b.AUSD+b.USDC,6):'…'}</strong>
-      <div className="m-sub">{b&&<>Wages and transfers in US dollars{b.CTK>0n?<> · {fmt(b.CTK,18)} in local currency</>:null}</>}</div>
+    <section className="m-balance"><p>Wallet balance</p><strong>{b?fmt(b.AUSD,6):'…'} <small>AUSD</small></strong>
+      <div className="m-sub">{b&&<>{fmt(b.USDC,6)} USDC{b.CTK>0n?<> · {fmt(b.CTK,18)} CTK (local currency)</>:null}</>}</div>
       <div className="m-sub">{b&&<>Fee credit {b.MON>=lowFee?'ready':'empty'} · paid by your employer</>}</div></section>
     <nav className="m-actions" aria-label="Quick actions">
       <Link href="/employee/send"><i>↗</i>Send</Link>
       <Link href="/employee/receive"><i>↙</i>Receive</Link>
       <Link href="/employee/cashout"><i>⇄</i>Cash out</Link>
-      <button onClick={faucet} disabled={w.working}><i>＋</i>Add test $</button>
+      <button onClick={faucet} disabled={w.working}><i>＋</i>Get AUSD</button>
     </nav>
     <Feedback w={w}/><GasNote w={w}/>
     <Wages w={w}/>
@@ -130,24 +130,24 @@ function Send({w}){
     if(settle){
       if(!/^0x[0-9a-fA-F]{40}$/.test(to)){w.setError('Enter a valid recipient address.');return;}
       const result=await w.run('Sending through Agora Instant Settlement',wallet=>instantSettle({client:p.client,wallet,account:w.account,amount:value,to,onStep:w.setStatus}));
-      if(result){w.addActivity({type:'Sent abroad to '+short(to)+(note?' · '+note:''),amount:'-'+amount,symbol:'AUSD',hash:result.hashes.settle});w.setStatus('');setDone({hash:result.hashes.settle,amount,to,received:result.display+' in local currency'});setAmount('');}
+      if(result){w.addActivity({type:'Sent abroad to '+short(to)+(note?' · '+note:''),amount:'-'+amount,symbol:'AUSD',hash:result.hashes.settle});w.setStatus('');setDone({hash:result.hashes.settle,amount,to,received:result.display+' CTK (local currency)'});setAmount('');}
       return;
     }
     const hash=await w.run('Sending '+amount+' '+sym,wallet=>sendToken({client:p.client,wallet,account:w.account,token:token.address,to,amount:value}));
-    if(hash){w.addActivity({type:'Sent to '+short(to)+(note?' · '+note:''),amount:'-'+amount,symbol:sym,hash});w.setStatus('');setDone({hash,amount,to,received:'$'+amount});setAmount('');}}
+    if(hash){w.addActivity({type:'Sent to '+short(to)+(note?' · '+note:''),amount:'-'+amount,symbol:sym,hash});w.setStatus('');setDone({hash,amount,to,received:amount+' '+sym});setAmount('');}}
   return <section className="m-card"><h2>Send money</h2><p className="m-muted">Send to family or anyone, anywhere. Settled instantly on Monad.</p>
     <div className="m-seg" role="radiogroup" aria-label="Delivery">
       <button type="button" role="radio" aria-checked={settle} className={settle?'on':''} onClick={()=>setMode('settle')}>Send abroad · instant</button>
-      <button type="button" role="radio" aria-checked={!settle} className={!settle?'on':''} onClick={()=>setMode('direct')}>Send dollars</button>
+      <button type="button" role="radio" aria-checked={!settle} className={!settle?'on':''} onClick={()=>setMode('direct')}>Send AUSD / USDC</button>
     </div>
     <form className="m-form" onSubmit={submit}>
       <label>Recipient's pay ID (account number)<input value={to} onChange={e=>setTo(e.target.value.trim())} placeholder="0x…" required autoComplete="off"/></label>
       <label>Amount<div className="m-row"><input inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0.00" required/>{settle?<span className="m-unit">AUSD</span>:<select value={symbol} onChange={e=>setSymbol(e.target.value)}><option>AUSD</option><option>USDC</option></select>}</div></label>
-      <small className="m-muted">Balance: {w.bal?fmt(w.bal[sym],token.decimals,6):'…'} {sym}{settle?' · they receive local currency instantly, 1:1, no fee':''}</small>
+      <small className="m-muted">Balance: {w.bal?fmt(w.bal[sym],token.decimals,6):'…'} {sym}{settle?' · they receive CTK (local currency) instantly through Agora, 1:1, no fee':''}</small>
       <label>Note (optional, kept on this device)<input maxLength={80} value={note} onChange={e=>setNote(e.target.value)}/></label>
-      <button className="m-primary wide" disabled={w.working}>{w.working?'Sending…':'Send money'}</button>
+      <button className="m-primary wide" disabled={w.working}>{w.working?'Sending…':'Send '+sym}</button>
     </form><Feedback w={w}/><GasNote w={w}/>
-    {done&&<div className="m-success"><b>Sent ${done.amount}</b><p>To {short(done.to)} · they received {done.received}</p><TxLink hash={done.hash}/></div>}
+    {done&&<div className="m-success"><b>Sent {done.amount} {sym}</b><p>To {short(done.to)} · they received {done.received}</p><TxLink hash={done.hash}/></div>}
     <AgoraTrust/></section>;
 }
 
@@ -168,14 +168,14 @@ function CashOut({w}){
     const value=(()=>{try{return parseAmount(amount)}catch(err){w.setError(err.message)}})();if(!value)return;
     const result=await w.run('Preparing Agora Instant Settlement',wallet=>instantSettle({client:p.client,wallet,account:w.account,amount:value,onStep:w.setStatus}));
     if(result){w.addActivity({type:'Instant Settlement AUSD → CTK',amount:'-'+amount,symbol:'AUSD',hash:result.hashes.settle});w.setStatus('');setDone(result);setAmount('');}}
-  return <section className="m-card"><h2>Cash out</h2><p className="m-muted">Turn your dollars into local currency instantly, at a fixed 1:1 rate with no fee.</p>
+  return <section className="m-card"><h2>Cash out</h2><p className="m-muted">Turn AUSD into local currency (CTK) instantly through Agora, at a fixed 1:1 rate with no fee.</p>
     <form className="m-form" onSubmit={submit}>
       <label>You pay (AUSD)<input inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0.00" required/></label>
-      <div className="m-quote"><span>You receive</span><b>{quote===null?'—':fmt(quote,18,6)+' local'}</b></div>
-      <small className="m-muted">Available: ${w.bal?fmt(w.bal.AUSD,6,2):'…'}</small>
+      <div className="m-quote"><span>You receive</span><b>{quote===null?'—':fmt(quote,18,6)+' CTK'}</b></div>
+      <small className="m-muted">Available: {w.bal?fmt(w.bal.AUSD,6,2):'…'} AUSD</small>
       <button className="m-primary wide" disabled={w.working||quote===0n}>{w.working?'Settling…':'Settle instantly'}</button>
     </form><Feedback w={w}/><GasNote w={w}/>
-    {done&&<div className="m-success"><b>Received {done.display} in local currency</b>{done.hashes.whitelist&&<TxLink hash={done.hashes.whitelist}>Registration receipt</TxLink>}{done.hashes.approve&&<TxLink hash={done.hashes.approve}>Authorization receipt</TxLink>}<TxLink hash={done.hashes.settle}>Settlement receipt</TxLink></div>}
+    {done&&<div className="m-success"><b>Received {done.display} CTK (local currency)</b>{done.hashes.whitelist&&<TxLink hash={done.hashes.whitelist}>Registration receipt</TxLink>}{done.hashes.approve&&<TxLink hash={done.hashes.approve}>Authorization receipt</TxLink>}<TxLink hash={done.hashes.settle}>Settlement receipt</TxLink></div>}
     <details className="m-fine"><summary>How it works</summary><p>Settled through Agora Instant Settlement on Monad. The first cash-out also registers your account with Agora and authorizes the amount; later ones are a single step.</p></details><AgoraTrust/></section>;
 }
 
