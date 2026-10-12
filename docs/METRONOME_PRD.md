@@ -87,115 +87,43 @@ spreads workers across 64 separate compartments so their payments do not get in 
 
 ---
 
-## Part B: Current status, 11 Oct 2026
+## Part B: Current status, 13 Oct 2026
 
 **Live:** business website https://shiftpay-business.vercel.app · employee phone app https://shiftpay-employee.vercel.app ·
 code https://github.com/Lakshmikanth-3/ShiftPay
 
 | Phase | Status | Evidence |
 |---|---|---|
-| 1. Safe payroll contract | Done | 36 unit and fuzz tests, 5 invariants (solvency, conservation, no unbacked claims, monotonic totals, all earnings funded) |
-| 2. Business website and employee app | Done, live | Passkey-only accounts (Privy removed), plain dollar wording, mobile layout, pitch deck button |
-| 3. Hosting | Done, live | Payroll service inside the business Vercel project on Neon Postgres; employee app relays to it; public RPC fallbacks and caching for speed |
-| 4. Real testnet run | In progress | USDC vault `0xA1C794EA48A1D86294848D28E85c76328070DB24` (block 69456787, employer 1); employee 1 registered; funding fix deployed; full payroll cycle with the owner's passkey still to run; AUSD payroll vault `0xc118d4E298284192DAabE328eC236c3468a9E185` live (block 70080159) |
-| 5. Sponsor proof, user testing, videos, submission | In progress | Agora send-abroad, direct send and cash-out confirmed on chain by the automated agent; user tests and videos pending |
+| 1. Safe payroll contract | Done | 43 Foundry tests incl. 5 invariants (solvency, conservation, no unbacked claims, monotonic totals, all earnings funded); Slither scan triaged, 0 high ([SECURITY.md](SECURITY.md)) |
+| 2. Business website and employee app | Done, live | Mera passkey accounts only, AUSD/USDC wording, shift pay and monthly salary, mobile layout |
+| 3. Hosting | Done, live | Payroll service inside the business Vercel project on Neon Postgres; employee app relays to it; Alchemy RPC with public fallbacks |
+| 4. Real testnet run | Done | USDC vault `0xA1C794EA48A1D86294848D28E85c76328070DB24` (block 69456787) and AUSD vault `0xc118d4E298284192DAabE328eC236c3468a9E185` (block 70080159); monthly salary withdrawn mid-month, gas paid by the relayer |
+| 5. Sponsor proof | Done | Agora send-abroad and cash-out, Mera onboarding and private payslips, Envio HyperSync indexing, all live ([BOUNTIES.md](BOUNTIES.md)) |
+| 6. Multi-company and gas safety | Done | Any company self-onboards with a passkey; daily sponsored-gas budgets; minimum sponsored withdrawal 1 AUSD/USDC and 5 free withdrawals a week, then direct from the worker's wallet |
+| 7. Videos, user test, submission | Owner | See remaining work |
 
-**Automated proof:** `npm run test:agent` drives both live sites with a virtual passkey and passed 26/26 checks on
-11 Oct 2026, with real Monad transactions: send abroad via Agora Instant Settlement `0xcd3a6301…a51f0a5e`, cash out
-`0xcb5e299e…2e5bfcc6`, and a brand-new business passkey creating its own company with a sponsored fee credit
-`0x3770f479…326976b7`. Judges can therefore try both the employee and the business side themselves.
+**Automated proof:** `npm run test:agent` drives both live sites with a virtual passkey and passes 26/26 checks with
+real Monad transactions, including send abroad via Agora Instant Settlement, cash out, and a brand-new business
+passkey creating its own company with a sponsored fee credit (latest `0xb057ba95…556b935b`, 13 Oct 2026).
 
-**Bounties entered on the portal:** Agora Cross-Border Payments, Best Mera-Powered UX, Mera: One Passkey Many Keys.
-Not eligible: Best Community Team (campus not on the onboarded list). Envio: live, payroll history indexed by HyperSync (health reports `envio-hypersync ok`).
+**Benchmark:** 96/96 transactions on testnet in about 2 s; no shard advantage measurable at 16 workers, reported as-is
+([benchmark/README.md](../benchmark/README.md)).
 
-### Remaining work, in order
+**Bounties entered:** Agora Cross-Border Payments, Best Mera-Powered UX, Mera: One Passkey Many Keys, Best Use of Envio.
 
-1. Owner: suspend employee 1, register employee 2 for the phone account, fund it, run a shift, withdraw.
-2. Done: Envio HyperSync indexing live and the Envio bounty added.
-3. Owner: make the GitHub repository public, or invite metropolis@hackathon.monad.xyz.
-4. Owner: five-person user test ([USER_TESTING.md](USER_TESTING.md)).
-5. Done: AUSD payroll vault live; judge companies can fund payroll with free AUSD from Agora's faucet.
-6. Record the technical demo (≤3 min) and pitch (≤2 min) videos; add the logo; submit.
+### Remaining work (owner)
+
+1. Make the GitHub repository public.
+2. Record the demo video (≤3 min, live product, explorer receipts on screen) and the pitch video (≤2 min).
+3. Five-person user test ([USER_TESTING.md](USER_TESTING.md)).
+4. Submit before 13 Oct 2026, 11:59 PM ET (14 Oct, 09:29 IST).
 
 ### Known limits
 
-- The employee app is an installable web app (works on any phone), not an app-store app.
-- On testnet, Agora's pair settles AUSD to CTK only; CTK stands in for local currency.
-- Withholding is a flat rate chosen by the employer and held in escrow; no tax calculation or filing.
-- Shift times are recorded by the employer; the fee payer and payroll service are run by the employer.
-- No revenue model is implemented yet; workers pay no fees.
-
-## 1. The leak, quantified
-
-| Evidence | Figure |
-|---|---|
-| Payday loan fees paid annually by 12M+ mostly low-income people | **$4.6B** |
-| Average borrower pays in fees to repeatedly borrow **$375** | **$520** |
-| Workers who accessed earned wage advances (2022) | 10M, **$32B** |
-| EWA transaction growth, 2021→2022 | **+90%** |
-| Workers paying at least one EWA fee | **~90%** |
-| Average fees per worker per year | $68.88 across 27 transactions |
-| Earned wage access market | $9.2B (2025) → $38.4B (2034) |
-| Payday lending market, 2026 | $43.02B |
-
-**The one statistic that is the entire pitch:**
-
-> **$520 in fees to borrow $375.** People pay more than the principal to reach money they have already earned.
+Each limit and the plan for it is in [LIMITATIONS.md](LIMITATIONS.md). In short: testnet only and unaudited; hours
+attested by the employer; flat withholding rate; testnet cash-out to CTK; installable web app rather than a store app.
 
 ---
-
-## 2. Why the leak exists
-
-Work happens continuously. Payroll settles in a batch, every two weeks.
-
-Between the moment labour is performed and the moment it is paid, the worker holds an **unfunded claim on their own earnings**. Rent is due on the 1st; the paycheque lands on the 15th. So the worker borrows against it, and an entire industry exists to lend people their own money back at a markup.
-
-**The pay cycle is not a policy choice. It is a technical artefact.** Batch payroll exists because computing, verifying and settling millions of individual payments was expensive, so it was amortised over a fortnight. Earned wage access doesn't fix that — it layers a lender on top of it and charges a fee per access.
-
-### The insight
-
-> Remove the batch and the lender has nothing to lend against. There is no advance to fee, because there is no gap.
-
-This is only true if settlement is cheap and massively concurrent. That is the whole reason this is a Monad product and not a 2015 product.
-
----
-
-## 3. Scope — deliberately narrow
-
-**ShiftPay is:** continuous, attested wage accrual with instant withdrawal, for hourly and shift-based workers paid by a single employer who pre-funds the payroll vault.
-
-**ShiftPay is not:**
-- a lender, an advance, or an EWA provider
-- a general money-streaming protocol
-- a full HR or payroll suite
-- a tax filing service
-- an employer-of-record
-
-**One buyer:** the operations lead at a shift-based employer — logistics, warehousing, hospitality, delivery, BPO — who is already paying for an EWA benefit and would rather not.
-
-**One job:** make the worker's balance reflect reality continuously, and let them take it whenever they want, at zero fee.
-
-**Deliberate exclusion:** no credit, ever. The moment you advance unearned money you become a lender and inherit the regulatory surface you are attacking. Accrual is capped by work actually attested and money actually funded.
-
----
-
-## 4. Why Monad — the honest version
-
-Be precise here, because the obvious claim is wrong and a judge will catch it.
-
-**Accrual itself is free and needs no transactions.** It is computed lazily on read — `earned = rate × attestedSeconds` — so a million workers accruing costs nothing. Do **not** claim a million streams means a million transactions per second. It doesn't.
-
-The parallelism bites in three real places:
-
-**1. Shift changes are synchronised, and that's the burst.** At 06:00, 14:00 and 22:00, tens of thousands of workers clock in or out **at the same instant**. Every attestation is an independent write to a different worker's state. A sequential chain queues them, so the last worker's clock-out confirms minutes late — and until it confirms, they cannot withdraw the wages they just earned. That is exactly the moment they want them: walking out of the building, past a shop.
-
-**2. Withdrawal bursts.** The EWA data shows 27 withdrawals per worker per year, clustered around rent days and weekends. A million workers means ~27M withdrawals a year, heavily bursty. Independent balances, perfectly parallel — **if** the contract doesn't funnel them through a shared counter.
-
-**3. Payroll funding sweeps** across thousands of worker allocations.
-
-So the claim to make:
-
-> Continuous payroll is an attestation and withdrawal burst problem, not a streaming problem. At shift change the whole workforce hits the chain at once, and every one of those writes is independent — provided the accounting never shares state. That layout is what we built.
 
 **Precedent to acknowledge:** `Flow` placed 2nd at a Blitz with per-second value streaming. Read it. Your difference: Flow streams a committed amount over time; ShiftPay accrues against **attested work**, caps accrual at **funded balance**, and handles withholding. A wage is not a vesting schedule.
 
@@ -203,21 +131,90 @@ So the claim to make:
 
 ## 5. Architecture
 
-```text
-┌──────────────┐  signed shift record  ┌────────────────────┐
-│ Timekeeping  │ ────────────────────► │ MetronomeVault.sol │
-│ (employer    │   EIP-712             │ • attested accrual │
-│  system or   │                       │ • funded ceiling   │
-│  device)     │                       │ • withholding      │
-└──────────────┘                       │ • sharded ledger   │
-                                       └─────────┬──────────┘
-┌──────────────┐    withdraw any time            │
-│   Worker     │ ◄──────────────────────────────┘
-│ (Mera passkey)│
-└──────────────┘
+### System architecture
+
+```mermaid
+flowchart TB
+    subgraph UI["User interfaces · Mera passkey sign-in"]
+        BIZ["🏢 Business website<br/>shiftpay-business.vercel.app"]
+        EMP["📱 Employee phone app<br/>shiftpay-employee.vercel.app"]
+    end
+
+    subgraph SVC["Payroll service · Vercel /api/bridge"]
+        ATT["✍️ Attestor<br/>signs shifts, EIP-712"]
+        POL["🛡️ Withdrawal policy<br/>min 1 token · 5 free a week"]
+        REL["⛽ Relayers<br/>sponsored gas · daily budgets"]
+        DB[("🗄️ Neon Postgres<br/>profiles · history · encrypted payslips")]
+    end
+
+    subgraph MON["Monad testnet"]
+        VAULT["🏦 MetronomeVault<br/>funded per-second accrual"]
+        SHARDS[("64 ShardVaults<br/>parallel worker ledgers")]
+        TAX["🧾 Tax escrow<br/>to fixed tax address"]
+        PAIR["🌍 Agora Instant Settlement<br/>AUSD · USDC"]
+    end
+
+    ENVIO["⚡ Envio HyperSync<br/>event indexing"]
+
+    BIZ -- "Clock in / out" --> ATT
+    EMP -- "Signed Withdraw" --> POL
+    EMP -- "Encrypted payslip" --> DB
+    ATT -- "openShift / closeShift" --> REL
+    POL -- "Approved" --> REL
+    BIZ -- "Create company, add and fund workers" --> VAULT
+    REL -- "Submit, pay gas" --> VAULT
+    EMP -- "Live balance: claimable()" --> VAULT
+    EMP -- "Send abroad / cash out" --> PAIR
+    VAULT --> SHARDS
+    VAULT --> TAX
+    VAULT -. "Vault events" .-> ENVIO
+    ENVIO -. "Payroll history" .-> DB
 ```
 
-The worker never pays gas and never manages keys. The employer's timekeeping system is the attestation authority. The vault is pre-funded, so no claim is ever unbacked.
+### One working day, end to end
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Owner as Business owner
+    participant B as Business website
+    participant S as Payroll service (Vercel)
+    participant V as MetronomeVault (Monad)
+    participant E as Employee app
+    actor W as Worker
+    participant A as Agora pair (Monad)
+    participant X as Envio HyperSync
+
+    Owner->>B: Passkey sign-in (Mera)
+    B->>V: createEmployer (attestor, tax address)
+    B->>V: createWorker + fundWorkers (AUSD)
+    B->>S: Admin-signed clock-in intent
+    S->>V: openShift with attestor signature (relayer pays gas)
+    loop every second
+        E->>V: claimable(workerId)
+        V-->>E: balance grows
+    end
+    B->>S: Admin-signed clock-out intent
+    S->>V: closeShift: gross split into net + tax escrow
+    W->>E: Tap Withdraw
+    E->>S: Worker-signed EIP-712 Withdraw
+    S->>S: Check signature, nonce, claimable, weekly allowance
+    alt free withdrawal available
+        S->>V: withdrawWithSig (relayer pays gas)
+    else allowance used
+        E->>V: withdraw() from the worker's wallet (daily gas grant)
+    end
+    V-->>E: Net wages to the payout address
+    W->>E: Send home
+    E->>A: AUSD via Instant Settlement, same transaction
+    V-->>X: Vault events
+    X-->>S: Indexed payroll history
+    S-->>B: Dashboard: shifts, runway, tax escrow
+```
+
+The worker never pays gas for normal use and never manages keys. The employer's attestor signs every shift; the
+vault is pre-funded, so no claim is ever unbacked. Workers can always call `withdraw()` themselves, so the relayer is
+a convenience, not a gatekeeper.
 
 ---
 
@@ -418,7 +415,10 @@ allocationRunway(uint256) view
 
 ### 8.1 Attestation bridge
 
-A connector that reads shift events from the employer's timekeeping system and signs them. Build one adapter for the demo: a webhook receiver plus a simple clock-in/out PWA for workers, so the demo is end-to-end without a real HR integration.
+As built: the payroll service (Fastify, bundled into the business Next.js app at `/api/bridge/*`) signs shifts for
+every company that registered its attestor. Shifts start and end from the business dashboard (admin-signed clock
+intents, 10-minute deadline, unique nonce), or from an external time clock or POS system through the HMAC-signed
+`/webhooks/clock` endpoint. Relayers submit the signed transactions and pay gas within daily per-company budgets.
 
 **Batch the submission, not the execution.** Group closing shifts **by shard** and submit one transaction per shard, so Monad executes them concurrently. One large `closeShiftBatch()` call would run sequentially inside the EVM and forfeit the entire benefit — say this in the pitch.
 
@@ -426,9 +426,10 @@ A connector that reads shift events from the employer's timekeeping system and s
 
 - Mera passkey sign-in (face, fingerprint or PIN), no seed phrase, no extension
 - A number that ticks upward in real time, driven by the `claimable` view
-- One button: **Take it now**
+- One button: **Withdraw** (minimum 1 AUSD/USDC or the whole balance; 5 sponsored a week, then direct from the wallet)
 - Shift history with the signed attestation behind each line
-- Gas sponsored by the employer via a relayer
+- Gas sponsored by the employer via a relayer; a small daily gas grant for direct actions
+- Send AUSD abroad through Agora Instant Settlement; private payslips encrypted with a second passkey key
 
 The ticking number is the entire emotional product. Build it first and make it beautiful.
 
@@ -447,7 +448,7 @@ The ticking number is the entire emotional product. Build it first and make it b
 | Settlement | USDC and Agora AUSD; Agora Instant Settlement pair for send-abroad and cash-out |
 | Indexing | Envio HyperSync feeds vault events into Postgres with a persisted cursor |
 
-Bounty focus: **Agora cross-border payments**, **Best Mera-Powered UX** and **Mera: One Passkey, Many Keys**.
+Bounty focus: **Agora cross-border payments**, **Best Mera-Powered UX**, **Mera: One Passkey, Many Keys** and **Best Use of Envio**.
 Privy was removed so Mera is the entire account layer.
 
 ---
@@ -482,15 +483,19 @@ Credit or advances, a token, governance, cross-chain, tax filing, a full HR suit
 
 ## 11. Demo script (3 min cap)
 
-**0:00–0:30 — the leak.** *"Twelve million people pay four point six billion dollars a year in payday fees. The average borrower pays five hundred and twenty dollars in fees to borrow three hundred and seventy-five. That's money they already earned. They're paying a fee to reach their own wages, because payroll runs every two weeks."*
+The video shows the live product only, no slides, and opens real transactions on the Monad explorer.
 
-**0:30–1:10 — the product, live.** Worker clocks in on a phone. The balance starts ticking, visibly, in real time. Fast-forward four hours of shift. *"No advance. No lender. No fee. This is just what she has earned, as she earns it."* Tap **Take it now** — money arrives.
+**0:00–0:20 — the problem.** *"Twelve million people pay billions a year in payday fees to reach wages they already earned."*
 
-**1:10–1:50 — the honest engineering.** *"Accrual costs nothing; it's a view. The hard part is shift change."* Fire 5,000 simultaneous clock-outs at both contracts. Show the two curves. *"At two p.m. the whole warehouse clocks out at once. The naive design writes one shared total on every attestation, so they queue — and until yours confirms, you can't withdraw. Ours never shares state between workers."*
+**0:20–1:00 — business.** Passkey sign-in on the business site. Fund payroll with AUSD, add a worker, start the shift.
 
-**1:50–2:25 — the parts that make it payroll.** Show withholding routed to tax escrow, the funded-runway alarm, and an over-estimate recovered from future accrual rather than the worker's wallet. *"We will never take money back out of a worker's account. Ever."*
+**1:00–1:40 — employee.** The phone balance ticks up every second. Tap **Withdraw**; the money arrives in about a second, gas paid by the employer.
 
-**2:25–3:00 — close.** *"We're not a better advance. We removed the thing you'd be advancing against."*
+**1:40–2:10 — proof on Monad.** Open the withdrawal on the Monad testnet explorer: status, vault address, AUSD amount.
+
+**2:10–2:40 — cross-border.** Send AUSD home through Agora Instant Settlement; open that receipt too. Show a private payslip.
+
+**2:40–3:00 — close.** *"We're not a better advance. We removed the gap."* Show both site links and the repository.
 
 ---
 
@@ -564,7 +569,8 @@ Claim no payroll volume, employers or users you do not have.
 | **Employer underfunds** | Runway alarm; accrual stops at the ceiling. Workers see real numbers, not promises |
 | **Attestor key compromise** | Bounded by funded allocation; rotation is one transaction; corrections possible on future accrual |
 | **Regulatory surface (withholding, minimum wage)** | Scope to one jurisdiction for the pitch; present withholding as a hook, not a compliance claim |
-| **No real employer in 7 days** | Ship the clock-in PWA plus a CSV roster import so the demo is end-to-end and reproducible |
+| **No real employer yet** | Judges and any business can self-onboard with a passkey; free campus pilot planned |
+| **Relayer gas cost** | Daily per-company budgets; minimum sponsored withdrawal and 5 free a week, then direct withdrawal |
 | **Float yield looks predatory** | Disclose it in the pitch before anyone asks |
 
 ---
@@ -615,7 +621,7 @@ invariant_no_unbacked_claims
 | 2 | EIP-712 attestation, replay bitmap, funded ceiling, withholding. Invariants |
 | 3 | Deploy to Monad. Naive control contract. Shift-burst benchmark + chart |
 | 4 | **Worker PWA with the live ticking balance and one-tap withdraw** |
-| 5 | Employer dashboard, funding, runway alarm. Privy + sponsored gas |
+| 5 | Employer dashboard, funding, runway alarm. Mera passkeys + sponsored gas |
 | 6 | Attestation bridge, clock-in/out flow, CSV roster, over-estimate demo |
 | 7 | README, demo video, submission fields, bounty checklists. Freeze and rehearse |
 
@@ -644,15 +650,15 @@ ShiftPay/
 
 ## 18. Submission checklist
 
-- [x] Public repo, OSI licence, public from the start of work
-- [x] Pre-existing dependencies declared in the README
-- [ ] Contract deployed and verified, address in README — USDC vault deployed; AUSD vault and explorer verification pending
-- [ ] Benchmark reproducible in one command
-- [ ] Demo video ≤ 3 minutes
+- [ ] Public repo (owner must switch visibility to public), MIT licence
+- [x] Dependencies and AI-tool use declared in the README
+- [x] Contracts deployed on Monad testnet, addresses in the README
+- [x] Benchmark run on testnet and documented
+- [ ] Demo video ≤ 3 minutes, public link
 - [x] Track 02 — Consumer Products & Payments
-- [x] Agora and Mera bounty requirements mapped line by line in [BOUNTIES.md](BOUNTIES.md); Agora transfers confirmed on chain by the automated agent
-- [x] Agora: mobile app, Mera passkey onboarding, AUSD send, Instant Settlement integration (built)
-- [ ] Agora: real transaction evidence recorded
+- [x] Agora, Mera and Envio requirements mapped line by line in [BOUNTIES.md](BOUNTIES.md)
+- [x] Agora: mobile app, Mera onboarding, AUSD send, Instant Settlement, confirmed on chain
+- [x] Security review and Slither triage ([SECURITY.md](SECURITY.md)); limitations and roadmap ([LIMITATIONS.md](LIMITATIONS.md))
 
 ---
 
@@ -678,7 +684,7 @@ ShiftPay/
 
 **Why does it need a blockchain?** The worker can verify their own ledger — every accrual traces to a shift record signed by the employer, who cannot silently change it. And funded-only accrual is enforced rather than promised. For one domestic employer with a trusted provider, a good internal system gets close; the argument strengthens with contractors and cross-border work.
 
-**Doesn't a million workers streaming mean a million transactions a second?** No, and we don't claim it. Accrual is a view and costs nothing. The real load is synchronised shift changes and bursty withdrawals, and the benchmark shows both.
+**Doesn't a million workers streaming mean a million transactions a second?** No, and we don't claim it. Accrual is a view and costs nothing. The real load is synchronised shift changes and bursty withdrawals. Our testnet run (96 transactions, about 2 s) is small; at 16 workers sharding showed no advantage yet, and we report that honestly.
 
 **Are you a lender?** No, and the invariant suite proves it. Accrual can never exceed attested work or funded money. If the employer underfunds, accrual stops — we never create a claim we can't honour.
 

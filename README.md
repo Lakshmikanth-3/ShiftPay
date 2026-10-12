@@ -34,6 +34,46 @@ is built for. The money is already theirs; only the payment timing was wrong.
 
 ## 1. Two apps, one vault
 
+### System architecture
+
+```mermaid
+flowchart TB
+    subgraph UI["User interfaces · Mera passkey sign-in"]
+        BIZ["🏢 Business website<br/>shiftpay-business.vercel.app"]
+        EMP["📱 Employee phone app<br/>shiftpay-employee.vercel.app"]
+    end
+
+    subgraph SVC["Payroll service · Vercel /api/bridge"]
+        ATT["✍️ Attestor<br/>signs shifts, EIP-712"]
+        POL["🛡️ Withdrawal policy<br/>min 1 token · 5 free a week"]
+        REL["⛽ Relayers<br/>sponsored gas · daily budgets"]
+        DB[("🗄️ Neon Postgres<br/>profiles · history · encrypted payslips")]
+    end
+
+    subgraph MON["Monad testnet"]
+        VAULT["🏦 MetronomeVault<br/>funded per-second accrual"]
+        SHARDS[("64 ShardVaults<br/>parallel worker ledgers")]
+        TAX["🧾 Tax escrow<br/>to fixed tax address"]
+        PAIR["🌍 Agora Instant Settlement<br/>AUSD · USDC"]
+    end
+
+    ENVIO["⚡ Envio HyperSync<br/>event indexing"]
+
+    BIZ -- "Clock in / out" --> ATT
+    EMP -- "Signed Withdraw" --> POL
+    EMP -- "Encrypted payslip" --> DB
+    ATT -- "openShift / closeShift" --> REL
+    POL -- "Approved" --> REL
+    BIZ -- "Create company, add and fund workers" --> VAULT
+    REL -- "Submit, pay gas" --> VAULT
+    EMP -- "Live balance: claimable()" --> VAULT
+    EMP -- "Send abroad / cash out" --> PAIR
+    VAULT --> SHARDS
+    VAULT --> TAX
+    VAULT -. "Vault events" .-> ENVIO
+    ENVIO -. "Payroll history" .-> DB
+```
+
 ### Business: a website
 
 | Step | What the owner does | What happens underneath |
