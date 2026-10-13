@@ -583,6 +583,7 @@ We claim no users, employers or payroll volume we do not have.
 | Employer pays gas | Budgets, minimum, allowance | Batched withdrawals; gas inside the fee |
 | Funding locked up front | Runway warning; reclaim unearned funds | Automatic top-up |
 | Testnet cash-out to CTK | Agora Instant Settlement | Licensed bank/UPI off-ramp |
+| First-use confusion (withdrawal minimum, paused earning, 15-minute re-login) | Withdraw card explains the minimum; a "Earning paused" notice when funding runs out | "Trust this device today" session option |
 | Small benchmark | 96 transactions measured honestly | Hundreds of workers from several senders |
 | Web app, not store app | Installable mobile web app | Android Trusted Web Activity |
 
