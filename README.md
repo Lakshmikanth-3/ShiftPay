@@ -301,6 +301,37 @@ employer more per dollar paid.
 
 ---
 
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| Contracts | Solidity 0.8.28, Foundry, OpenZeppelin (SafeERC20, EIP-712, ECDSA, Clones) |
+| Chain | Monad testnet, chain id 10143 |
+| Accounts | Mera passkeys (`@category-labs/mera`), WebAuthn PRF |
+| Frontend | Next.js 16 (App Router), React 19, viem, plain CSS |
+| Payroll service | Fastify, TypeScript, zod, Prisma, bundled into the business Next.js app |
+| Database | Neon Postgres (Vercel Marketplace) |
+| Payments | Agora AUSD, USDC, Agora Instant Settlement pair and public API |
+| Indexing and RPC | Envio HyperSync; Alchemy Monad RPC with public fallbacks |
+| Hosting | Vercel (business and employee projects) |
+| Testing | Forge unit/fuzz/invariant tests, Vitest, Node test runner, live CDP agent with a virtual passkey, Slither |
+
+## Why Monad
+
+ShiftPay turns payroll from one batch every two weeks into many small actions: shifts opening and closing, and
+workers withdrawing whenever they want. That only works on a chain where those actions are cheap and fast.
+
+- **About 1-second blocks and sub-cent fees** make per-second wages and on-demand withdrawals practical; a worker
+  sees money land in seconds, and the employer can afford to sponsor the fee.
+- **Pay is computed on read**, so nothing is written as time passes; on-chain writes happen only at shift changes,
+  funding and withdrawals.
+- **Parallel execution:** shift change is a burst (a whole workforce clocks out and withdraws at once). The vault
+  spreads workers across 64 shard vaults so their accounting never shares storage slots, letting independent
+  workers' transactions execute in parallel. Our 16-worker testnet benchmark (96 transactions, 0 failures, about
+  2 s) showed no measurable shard advantage yet at that size; we report that honestly and expect the benefit at
+  larger bursts.
+- **Full EVM compatibility** let us use Solidity, Foundry, OpenZeppelin, viem and EIP-712 unchanged.
+
 ## 7. Configuration and deployment
 
 ### Prerequisites
