@@ -1,15 +1,15 @@
 /* Business payroll dashboard. Sidebar on desktop, top tabs on phones. */
-.b-shell,.b-signin{--b-bg:#f3f4ee;--b-card:#fff;--b-ink:#17251d;--b-muted:#66705f;--b-brand:#1f3a2c;--b-accent:#cfef93;--b-line:#e4e7dc;color:var(--b-ink);font-family:'DM Sans',system-ui,sans-serif;background:var(--b-bg);min-height:100dvh}
+.b-shell,.b-signin{--b-bg:#f3f6fb;--b-card:#fff;--b-ink:#0f1538;--b-muted:#5d6685;--b-brand:#141a4f;--b-accent:#5fe0b0;--b-line:#e1e6f0;color:var(--b-ink);font-family:'DM Sans',system-ui,sans-serif;background:var(--b-bg);min-height:100dvh}
 .b-shell main,.b-shell nav,.b-shell section,.b-shell header,.b-signin main,.b-signin section{margin:0;max-width:none;padding:0}
 .b-shell{display:grid;grid-template-columns:240px 1fr}
 .b-side{position:sticky;top:0;height:100dvh;display:flex;flex-direction:column;gap:20px;padding:24px 16px;background:var(--b-brand);color:#fff}
 .b-brand{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none;font-weight:800;font-size:20px}
 .b-side nav{display:flex;flex-direction:column;gap:4px}
-.b-side nav a{display:flex;gap:12px;align-items:center;padding:11px 12px;border-radius:12px;color:#d8e2d2;text-decoration:none;font-weight:600}
+.b-side nav a{display:flex;gap:12px;align-items:center;padding:11px 12px;border-radius:12px;color:#d6deed;text-decoration:none;font-weight:600}
 .b-side nav a i{font-style:normal;width:20px;text-align:center}
 .b-side nav a[aria-current=page],.b-side nav a:hover{background:#ffffff1a;color:#fff}
 .b-side nav a[aria-current=page]{box-shadow:inset 3px 0 0 var(--b-accent)}
-.b-account{margin-top:auto;display:flex;flex-direction:column;gap:6px;font-size:12px;color:#c9d4c3}.b-account b{color:#fff}
+.b-account{margin-top:auto;display:flex;flex-direction:column;gap:6px;font-size:12px;color:#c8cfe6}.b-account b{color:#fff}
 .b-account .b-small{color:#fff;border-color:#ffffff40}
 .b-logo{display:grid;place-items:center;width:56px;height:56px;border-radius:16px;background:var(--b-accent);color:var(--b-brand);font-weight:800;font-size:26px;margin:0 auto}
 .b-logo.small{width:32px;height:32px;border-radius:10px;font-size:16px;margin:0}
@@ -42,11 +42,11 @@
 .b-check{flex-direction:row!important;align-items:center;gap:10px!important;font-weight:500!important}
 .b-dl{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:14px;margin:8px 0}.b-dl dt{color:var(--b-muted)}.b-dl dd{margin:0;min-width:0}
 .mono{font-family:ui-monospace,monospace;font-size:12px;overflow-wrap:anywhere}
-.b-alert{margin:0;padding:10px 14px;border-radius:12px;background:#eef6e2;font-size:13px}.b-alert.error{background:#fdecea;color:#b42318}
+.b-alert{margin:0;padding:10px 14px;border-radius:12px;background:#eaf2ff;font-size:13px}.b-alert.error{background:#fdecea;color:#b42318}
 .b-empty{text-align:center;padding:28px 12px}.b-empty h3{margin:0 0 4px}.b-empty p{color:var(--b-muted)}
 .b-legacy section{background:var(--b-card);border:1px solid var(--b-line);border-radius:18px;padding:22px;margin:0 0 18px}
 .b-signin{display:grid;place-items:center;padding:24px}
-.b-signin-card{width:min(420px,100%);background:#fff;border:1px solid var(--b-line);border-radius:24px;padding:32px;text-align:center;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 60px #1f3a2c1a}
+.b-signin-card{width:min(420px,100%);background:#fff;border:1px solid var(--b-line);border-radius:24px;padding:32px;text-align:center;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 60px #141a4f1a}
 .b-signin-card h1{margin:0;font-size:26px}.b-signin-card p{margin:0}
 @media (max-width:860px){
   .b-shell{grid-template-columns:1fr}.b-side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;padding:14px 16px;gap:10px}
@@ -61,9 +61,9 @@
 .b-seg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0 4px}
 .b-seg button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:14px 16px;border:2px solid var(--b-line);border-radius:14px;background:#fff;cursor:pointer;text-align:left;font:inherit}
 .b-seg button b{font-size:15px}.b-seg button small{color:var(--b-muted);font-size:12px}
-.b-seg button.on{border-color:var(--b-brand);background:#f4f9ec}
+.b-seg button.on{border-color:var(--b-brand);background:#eef4ff}
 /* Sidebar Sign out: light text on the dark sidebar (overrides the ghost button ink colour). */
-.b-side .b-account .b-small.ghost{color:#f3f4ee;border-color:#ffffff55;background:transparent}
+.b-side .b-account .b-small.ghost{color:#f3f6fb;border-color:#ffffff55;background:transparent}
 .b-side .b-account .b-small.ghost:hover{background:#ffffff1a}
 /* Sidebar: left-aligned menu with a fixed icon column; brand uses the ShiftPay mark. */
 .b-side nav{align-items:stretch;justify-content:flex-start;padding:0;max-width:none;margin:0}
