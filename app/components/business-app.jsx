@@ -11,6 +11,7 @@ import {pitchUrl} from '../lib/pitch.mjs';
 import {SALARY_MAX_SECONDS,SHIFT_MAX_SECONDS,SALARY_HOURS_PER_MONTH,salaryToHourly,isSalaried} from '../lib/pay-plans.mjs';
 
 function PitchLink({className='b-pitch'}){return <a className={className} href={pitchUrl} target="_blank" rel="noreferrer">▶ Pitch</a>}
+function EmployeeLink({className='b-pitch ghost'}){return <a className={className} href="https://shiftpay-employee.vercel.app/employee" target="_blank" rel="noreferrer">Employee app ↗</a>}
 
 const nav=[['','Overview','◧'],['employees','Employees','☺'],['shifts','Shifts','◷'],['funding','Funding','◈'],['payments','Payments','☰'],['settings','Settings','⚙']];
 const short=a=>a?a.slice(0,6)+'…'+a.slice(-4):'';
@@ -37,7 +38,7 @@ function CompanySetup(){
 
 function SignIn(){
   const p=usePayroll(),[name,setName]=useState('');
-  return <div className="b-signin"><PitchLink className="b-pitch floating"/><div className="b-signin-card">
+  return <div className="b-signin"><div className="b-floating"><EmployeeLink/><PitchLink/></div><div className="b-signin-card">
     <img className="b-logo-img" src="/logo-mark.png" alt="ShiftPay" width="64" height="64"/><h1>ShiftPay for Business</h1>
     <p>Fund payroll, verify shifts and pay employees as they earn on Monad.</p>
     <button className="b-primary wide" disabled={p.busy} onClick={()=>p.startMera(false)}>{p.busy?'Waiting for passkey…':'Unlock company passkey'}</button>
@@ -193,7 +194,7 @@ export default function BusinessApp({section=''}){
   return <div className="b-shell">
     <aside className="b-side"><Link className="b-brand" href="/employer"><img className="b-logo-img small" src="/logo-mark.png" alt="" width="34" height="34"/>ShiftPay</Link>
       <nav aria-label="Business navigation">{nav.map(([k,l,i])=><Link key={k} href={'/employer'+(k?'/'+k:'')} aria-current={section===k?'page':undefined}><i>{i}</i>{l}</Link>)}</nav>
-      <PitchLink/><div className="b-account"><span>Company account</span><b className="mono">{short(p.wallet.address)}</b><button className="b-small ghost" onClick={()=>p.logout().catch(()=>{})}>Sign out</button></div></aside>
+      <PitchLink/><EmployeeLink/><div className="b-account"><span>Company account</span><b className="mono">{short(p.wallet.address)}</b><button className="b-small ghost" onClick={()=>p.logout().catch(()=>{})}>Sign out</button></div></aside>
     <main className="b-main"><header className="b-top"><div><p className="b-eyebrow">{p.dashboard?.company?.name||'Business payroll'}</p><h1>{title}</h1></div>
       <label className="b-currency">Currency<select value={p.asset} disabled={p.busy||!!p.pending} onChange={e=>{requested.current='';p.setEmployer('');p.setAsset(e.target.value)}}><option>USDC</option><option>AUSD</option></select></label></header>
       {p.error&&p.cfg&&!(p.error.startsWith('The Monad network is busy')&&!p.dashboard)&&<p className="b-alert error">{p.error}</p>}{p.notice&&<p className="b-alert mono">{p.notice}</p>}

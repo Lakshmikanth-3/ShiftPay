@@ -241,7 +241,7 @@ export default function WalletApp({section=''}){
   const signedIn=p.authenticated&&p.wallet;
   const screen={send:Send,receive:Receive,cashout:CashOut,history:History,profile:ProfileScreen}[section]||Home;
   return <div className="m-shell"><div className="m-phone">
-    <header className="m-top"><img className="m-logo-img small" src="/logo-mark.png" alt="" width="30" height="30"/><b>ShiftPay</b><a className="m-pitch" href={pitchUrl} target="_blank" rel="noreferrer">▶ Pitch</a></header>
+    <header className="m-top"><img className="m-logo-img small" src="/logo-mark.png" alt="" width="30" height="30"/><b>ShiftPay</b><a className="m-pitch m-other" href="https://shiftpay-business.vercel.app/employer" target="_blank" rel="noreferrer">For business ↗</a><a className="m-pitch" href={pitchUrl} target="_blank" rel="noreferrer">▶ Pitch</a></header>
     <main className="m-main">{!signedIn?<Login/>:React.createElement(screen,{w})}
       {p.error&&signedIn&&!p.error.includes('pending')&&!/unknown worker|not registered/i.test(p.error)&&<p className="m-alert error">{p.error}</p>}
       {p.notice&&signedIn&&<p className="m-alert">{p.notice}</p>}</main>
