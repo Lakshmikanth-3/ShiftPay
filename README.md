@@ -27,8 +27,18 @@ is built for. The money is already theirs; only the payment timing was wrong.
 |---|---|
 | Business website | https://shiftpay-business.vercel.app |
 | Employee mobile wallet | https://shiftpay-employee.vercel.app |
-| USDC payroll vault | [`0xA1C794EA48A1D86294848D28E85c76328070DB24`](https://testnet.monadexplorer.com/address/0xA1C794EA48A1D86294848D28E85c76328070DB24) |
-| AUSD payroll vault | [`0xc118d4E298284192DAabE328eC236c3468a9E185`](https://testnet.monadexplorer.com/address/0xc118d4E298284192DAabE328eC236c3468a9E185) |
+| USDC payroll vault | [`0xA1C794EA48A1D86294848D28E85c76328070DB24`](https://testnet.monadscan.com/address/0xA1C794EA48A1D86294848D28E85c76328070DB24) |
+| AUSD payroll vault | [`0xc118d4E298284192DAabE328eC236c3468a9E185`](https://testnet.monadscan.com/address/0xc118d4E298284192DAabE328eC236c3468a9E185) |
+
+### Submission at a glance
+
+| | |
+|---|---|
+| Hackathon | Monad Metropolis 2026 · Track 02 Consumer Products & Payments |
+| Bounties | Agora Cross-Border Payments · Best Mera-Powered UX · Mera: One Passkey, Many Keys · Best Use of Envio · Best Projects using Alchemy |
+| Builder | Lakshmikanth S (solo), final year, Loyola-ICAM College of Engineering and Technology, Chennai |
+| Why it is not a stream | Pay is funded first, tied to signed shifts, tax withheld in escrow, and never clawed back |
+| Early feedback | Survey of 5 part-time student workers: all often short before payday, 4 of 5 paid 2+ weeks late, average interest 4.2/5, all found the live app easy ([PRD §4](docs/METRONOME_PRD.md#4-current-status-and-proof)) |
 
 ---
 
@@ -284,6 +294,8 @@ employer more per dollar paid.
 | Live agent (`npm run test:agent`) | 26/26 checks on the deployed sites with a virtual passkey: onboarding, fee credit, Agora faucet, send abroad via Instant Settlement, direct send, cash out, payslips, stateless re-login, judge creates a company |
 | Monthly salary, owner's own run | 2,592 AUSD/month employee; salary accrued every second; mid-month withdrawal `0x350d5fc1…f524fa` paid by the company's relayer |
 | Shift-change benchmark | 16 workers × open/close/withdraw on a 64-shard vault and a single-storage control: 96 transactions, 0 failures, p50 ≈ 2 s. At this size the designs perform the same; see [benchmark/README.md](benchmark/README.md) |
+| Envio HyperSync indexing | `/api/bridge/health` reports `envio-hypersync ok`; payroll lookup by address and the Payments ledger read indexed events |
+| Contract tests | 43 Foundry tests including 5 invariants; Slither 0 high |
 | Security review | [docs/SECURITY.md](docs/SECURITY.md): automated checks, Slither triage, fixes and known limits |
 | Limitations and roadmap | [docs/LIMITATIONS.md](docs/LIMITATIONS.md): each known drawback, what is done now and what comes next |
 
@@ -395,4 +407,4 @@ docs/        PRD, architecture, trust model, setup, phases, demo, submission
 - [`docs/BOUNTIES.md`](docs/BOUNTIES.md): track and bounty requirements, line by line
 - [`docs/DEMO.md`](docs/DEMO.md): the demo script
 
-Built for Monad Metropolis, Track 02 Consumer Products & Payments. MIT licence.
+Built for Monad Metropolis, Track 02 Consumer Products & Payments, by Lakshmikanth S. MIT licence.

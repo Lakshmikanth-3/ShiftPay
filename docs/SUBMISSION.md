@@ -1,6 +1,6 @@
 # Submission checklist
 
-Event: Monad Metropolis · Track 02 — Consumer Products & Payments · bounties: Agora cross-border AUSD, Best Mera-Powered UX, Mera One Passkey Many Keys, Envio.
+Event: Monad Metropolis · Track 02 — Consumer Products & Payments · bounties: Agora cross-border AUSD, Best Mera-Powered UX, Mera One Passkey Many Keys, Envio, Alchemy.
 
 ## Done
 - [x] Architecture and trust model documented ([architecture](architecture.md), [trust model](trust-model.md)).
