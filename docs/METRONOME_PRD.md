@@ -196,7 +196,22 @@ Both use the same contract; a salary is a shift with a long maximum length (`app
 - Withdrawal: tap to confirmed on Monad in about 10 seconds, gas paid by the employer.
 - Words the worker never sees: wallet, seed phrase, gas.
 
-No user test has been run yet; no user numbers are claimed.
+### Early user feedback (13 Oct 2026, survey of 5 part-time student workers)
+
+Small sample; collection continues.
+
+| Question | Result |
+|---|---|
+| Work part-time or in shifts | 5 of 5 |
+| Paid 2 weeks or more after working | 4 of 5 (1 week: 1; 2 weeks: 2; 2 weeks to 1 month: 1; 1 to 2 months: 1) |
+| Often short of money before payday | 5 of 5 |
+| Covered the gap by borrowing (loan app, friends or family) | 3 of 5 (1 waited, 1 other) |
+| Interest in withdrawing earned wages any time, free (1 to 5) | 5, 5, 5, 4, 2 (average 4.2) |
+| Send money to family | 5 of 5 |
+| Tried the live app and found it easy | 5 of 5 (two scored 5/5) |
+
+The lowest interest score (2/5) points to trust and real-money cash-out as the next priority. A live user pilot has not
+yet run; the numbers above are survey and first-impression feedback only.
 
 ---
 
@@ -554,7 +569,7 @@ Growth is employer-led: one employer brings its whole workforce; workers join by
 shift. Employers adopt it for lower turnover, a recruiting perk ("paid the same day"), no cash handling, and
 automatic withholding.
 
-We claim no users, employers or payroll volume we do not have.
+Evidence so far is a 5-person survey of the target segment (section 4). We claim no employers or payroll volume we do not have.
 
 ---
 
@@ -569,7 +584,7 @@ We claim no users, employers or payroll volume we do not have.
 | Attestor key compromise | Bounded by funded allocation; `rotateAttestor` in one transaction |
 | Relayer gas cost | Daily budgets, withdrawal minimum, weekly allowance |
 | Regulation (withholding, wage law) | Withholding is a hook, not a compliance claim; one jurisdiction at a time |
-| No users yet | Self-serve onboarding; campus pilot planned |
+| Few users so far | 5-person survey done; self-serve onboarding; campus pilot planned |
 
 ---
 
@@ -656,7 +671,8 @@ ShiftPay/
 - [x] Form text, 5 bounty answers and judge access steps written
 - [ ] Alchemy bounty added on the portal; confirm `MONAD_RPC_URL` is the Alchemy endpoint (owner)
 - [ ] All fields pasted and **Submit** pressed; checklist 6/6 (owner)
-- [ ] Optional: real user test with 2–5 classmates; pilot "yes" from a campus café
+- [x] 5-person survey of part-time student workers (section 4)
+- [ ] Optional: pilot "yes" from a campus café
 
 ---
 
