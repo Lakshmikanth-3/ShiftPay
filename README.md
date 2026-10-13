@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/logo.png" alt="ShiftPay, paid by the second" width="420"></p>
+<p align="center"><img src="docs/logo.png" alt="ShiftPay, paid by the second" width="360"></p>
 
 # ShiftPay
 

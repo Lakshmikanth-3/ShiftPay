@@ -6,5 +6,4 @@ fs.writeFileSync(path.join(root,'lib','vault-abi.mjs'),'export const metronomeVa
 const preview=path.resolve(root,'public/preview');
 if(preview!==path.join(root,'public','preview'))throw new Error('Invalid preview cleanup path');
 fs.rmSync(preview,{recursive:true,force:true});
-async function icons(){const sharp=require('sharp');for(const size of [192,512])await sharp(path.join(root,'public/icon.svg')).resize(size,size).png().toFile(path.join(root,`public/icon-${size}.png`));}
-icons().catch(error=>{console.error(error);process.exitCode=1;});
+// App icons (logo-mark.png, icon-192.png, icon-512.png) are committed PNGs made from the ShiftPay logo.
