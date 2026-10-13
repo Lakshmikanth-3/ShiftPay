@@ -1,12 +1,18 @@
 # ShiftPay — Product Requirements Document
 
 **Hackathon:** Monad Metropolis
-**Submission deadline:** 13 Oct 2026, 11:59 PM ET
+**Submission deadline:** 13 Oct 2026, 11:59 PM ET (14 Oct, 09:29 IST)
 **Track:** 02 — Consumer Products & Payments
+**Bounties:** Agora Cross-Border Payments · Best Mera-Powered UX · Mera: One Passkey, Many Keys · Best Use of Envio · Best Projects using Alchemy (being added)
+**Team:** Lakshmikanth S (solo builder), final year, Loyola-ICAM College of Engineering and Technology, Chennai
+**Document updated:** 13 Oct 2026
 
 **Tagline:** **You earned it at 2pm. Why wait until the 15th?**
 
 **One line:** ShiftPay pays wages as they are earned, second by second, so workers never borrow against money that is already theirs.
+
+**Positioning:** Streaming apps run a timer. ShiftPay pays *wages*: employer-funded first, tied to signed shifts, tax withheld,
+never clawed back. A wage is not a stream.
 
 ---
 
@@ -92,40 +98,66 @@ spreads workers across 64 separate compartments so their payments do not get in 
 **Live:** business website https://shiftpay-business.vercel.app · employee phone app https://shiftpay-employee.vercel.app ·
 code https://github.com/Lakshmikanth-3/ShiftPay
 
-| Phase | Status | Evidence |
+### B.1 What is built and verified
+
+| Area | Status | Evidence |
 |---|---|---|
-| 1. Safe payroll contract | Done | 43 Foundry tests incl. 5 invariants (solvency, conservation, no unbacked claims, monotonic totals, all earnings funded); Slither scan triaged, 0 high ([SECURITY.md](SECURITY.md)) |
-| 2. Business website and employee app | Done, live | Mera passkey accounts only, AUSD/USDC wording, shift pay and monthly salary, mobile layout |
-| 3. Hosting | Done, live | Payroll service inside the business Vercel project on Neon Postgres; employee app relays to it; Alchemy RPC with public fallbacks |
-| 4. Real testnet run | Done | USDC vault `0xA1C794EA48A1D86294848D28E85c76328070DB24` (block 69456787) and AUSD vault `0xc118d4E298284192DAabE328eC236c3468a9E185` (block 70080159); monthly salary withdrawn mid-month, gas paid by the relayer |
-| 5. Sponsor proof | Done | Agora send-abroad and cash-out, Mera onboarding and private payslips, Envio HyperSync indexing, all live ([BOUNTIES.md](BOUNTIES.md)) |
-| 6. Multi-company and gas safety | Done | Any company self-onboards with a passkey; daily sponsored-gas budgets; minimum sponsored withdrawal 1 AUSD/USDC and 5 free withdrawals a week, then direct from the worker's wallet |
-| 7. Videos, user test, submission | Owner | See remaining work |
+| Payroll contract | Done | `MetronomeVault` + 64 `ShardVault` clones. 43 Foundry tests incl. 5 invariants (solvency, conservation, no unbacked claims, monotonic totals, all earnings funded). Slither: 26 results, 0 high, all triaged ([SECURITY.md](SECURITY.md)) |
+| Business website | Done, live | Passkey company sign-up, AUSD/USDC currency switch, Overview, Employees (shift pay or monthly salary), Shifts, Funding (Agora faucet, tax remittance), Payments (Envio-indexed), Settings |
+| Employee phone app | Done, live | Passkey sign-in, live per-second balance, Withdraw, Send abroad via Agora, direct transfer, Cash out, History, private payslips. Payroll found automatically from the passkey address, polled every 8 s until linked |
+| Payroll service | Done, live | Fastify inside the business Next.js app (`/api/bridge/*`) on Vercel + Neon Postgres. Attestor, relayers, withdrawal policy, gas grants, dashboard API, HMAC time-clock webhook |
+| Multi-company | Done | Any company self-onboards (`createEmployer` with the service attestor); 60 sponsored tx/day and 5 worker credits per self-serve company; 30 worker credits/day overall |
+| Gas safety | Done | Sponsored withdrawals ≥ 1 AUSD/USDC (or whole balance), 5 free per worker per week, then direct `withdraw()` from the worker's wallet using the daily gas grant |
+| Indexing / RPC | Done | Envio HyperSync (`/health` reports `envio-hypersync ok`); Alchemy RPC primary with public fallbacks |
+| Brand | Done | New logo (circle-arrow dollar mark) and navy/blue/green theme across both apps, deck, report and videos |
 
-**Automated proof:** `npm run test:agent` drives both live sites with a virtual passkey and passes 26/26 checks with
-real Monad transactions, including send abroad via Agora Instant Settlement, cash out, and a brand-new business
-passkey creating its own company with a sponsored fee credit (latest `0xb057ba95…556b935b`, 13 Oct 2026).
+### B.2 Deployments on Monad testnet (chain 10143)
 
-**Benchmark:** 96/96 transactions on testnet in about 2 s; no shard advantage measurable at 16 workers, reported as-is
-([benchmark/README.md](../benchmark/README.md)).
+| Item | Address |
+|---|---|
+| AUSD payroll vault | `0xc118d4E298284192DAabE328eC236c3468a9E185` (block 70080159, employer 1) |
+| USDC payroll vault | `0xA1C794EA48A1D86294848D28E85c76328070DB24` (block 69456787, employer 1) |
+| Agora AUSD faucet | `0xd236c18D274E54FAccC3dd9DDA4b27965a73ee6C` |
+| Agora Instant Settlement pair | `0x1Aa8958Aa34cEC8096EF4381cb335effe977b0ae` |
+| Home company admin (passkey) | `0x430ff06AB045911e5dC6B7a742ddC11f27F47487` |
 
-**Bounties entered:** Agora Cross-Border Payments, Best Mera-Powered UX, Mera: One Passkey Many Keys, Best Use of Envio.
+**Recorded demo run (13 Oct 2026):** new company `0xadfab41f…c88da17ae75`, relayed withdrawal of 2.25 AUSD
+`0x15988f83…daadf7e55`, send abroad via Agora `0xc8fb3cbb…3c691aa7efa7`. All confirmed on MonadScan.
 
-### Remaining work (owner)
+### B.3 Proof and measurements
 
-1. Make the GitHub repository public.
-2. Record the demo video (≤3 min, live product, explorer receipts on screen) and the pitch video (≤2 min).
-3. Five-person user test ([USER_TESTING.md](USER_TESTING.md)).
-4. Submit before 13 Oct 2026, 11:59 PM ET (14 Oct, 09:29 IST).
+- **Live agent:** `npm run test:agent` drives both deployed sites with a virtual passkey: 26/26 checks with real transactions.
+- **App tests:** 51 pass. **Bridge:** typecheck clean; unit, config, Envio tests pass; integration test covers relayed withdrawals, replays, forgeries and the minimum.
+- **First five minutes (from the recorded run):** employee account ready in under 10 s; withdrawal from tap to confirmed in about 10 s; the worker never sees a wallet, seed phrase or gas.
+- **Benchmark:** 96/96 transactions in a 16-worker shift change, about 2 s; no shard advantage measurable at this size, reported as-is ([benchmark/README.md](../benchmark/README.md)).
+- **Monthly salary:** withdrawn mid-month on chain, gas paid by the relayer.
 
-### Known limits
+### B.4 Submission deliverables
 
-Each limit and the plan for it is in [LIMITATIONS.md](LIMITATIONS.md). In short: testnet only and unaudited; hours
-attested by the employer; flat withholding rate; testnet cash-out to CTK; installable web app rather than a store app.
+| Deliverable | Status |
+|---|---|
+| Demo video (2:09, live product only, explorer receipts) | Made: `data/video/ShiftPay-demo.mp4` |
+| Pitch video (≤ 2:00, team intro) | Made: `data/video/ShiftPay-pitch.mp4` |
+| Agora bounty video (1:02: passkey onboarding, AUSD balance, completed send) | Made: `data/video/ShiftPay-agora.mp4` |
+| Form logo (1000 × 1000) | Made: `data/video/ShiftPay-logo-1000.png` |
+| Form text, 5 bounty answers, judge access steps | Written (submission kit) |
+| Pitch deck (15 slides) and project report | Published |
+
+### B.5 Remaining work (owner, before 14 Oct 09:29 IST)
+
+1. Make the GitHub repository public (required: judges must verify the code).
+2. Add the Alchemy bounty on the portal (an automated attempt did not persist) and confirm `MONAD_RPC_URL` is the Alchemy endpoint.
+3. Upload the three videos to YouTube (unlisted) and paste all fields; press **Submit**; checklist must read 6/6.
+4. Optional but valuable: a real user test with 2–5 classmates and a pilot "yes" from a campus café. **No user test has been run yet; no user numbers may be claimed until one is.**
+
+### B.6 Known limits
+
+Each limit and its plan is in [LIMITATIONS.md](LIMITATIONS.md): testnet only and unaudited; hours attested by the
+employer; flat withholding rate; testnet cash-out to CTK; installable web app rather than a store app; no users yet.
 
 ---
 
-**Precedent to acknowledge:** `Flow` placed 2nd at a Blitz with per-second value streaming. Read it. Your difference: Flow streams a committed amount over time; ShiftPay accrues against **attested work**, caps accrual at **funded balance**, and handles withholding. A wage is not a vesting schedule.
+**Precedents to acknowledge:** per-second pay ideas already exist on Monad (ShramPay, FlowPay; TickPay placed 3rd in a Monad AI hackathon payments track for usage micro-streaming). Our difference is in section 13: ShiftPay accrues against **attested work**, caps accrual at **funded balance**, withholds tax, never claws back, and hides the chain behind passkeys. A wage is not a vesting schedule.
 
 ---
 
@@ -250,6 +282,12 @@ On clock-out, the real duration replaces the estimate. If the worker withdrew ag
 ---
 
 ## 7. Contracts
+
+> **Note.** The Solidity in 7.1–7.7 is the original design sketch. The deployed contract differs in places: rates are
+> per hour (`ratePerHour`), mid-shift accrual uses checkpointed accrual segments so funding or rate changes keep earlier
+> pay exact, token custody is split across 64 `ShardVault` clones, workers can call `withdraw()` directly while the
+> relayer uses `withdrawWithSig`, and `createEmployer` is permissionless. See [architecture.md](architecture.md) for
+> the as-built ledger.
 
 ### 7.1 Storage
 
@@ -440,15 +478,17 @@ The ticking number is the entire emotional product. Build it first and make it b
 | Layer | Choice |
 |---|---|
 | Contracts | Solidity, Foundry, OpenZeppelin (SafeERC20, EIP-712, Clones) |
-| Chain | Monad testnet, chain id 10143; public RPC with fallbacks (monadinfra, Ankr, dRPC) |
+| Chain | Monad testnet, chain id 10143; Alchemy RPC primary for the payroll service, public RPC fallbacks (monadinfra, Ankr, dRPC) |
 | Accounts | **Mera** passkeys (`@category-labs/mera`): PRF-derived keys, no seed phrase, no extension |
 | Frontend | Next.js 16 (App Router), React 19, viem, plain CSS |
 | Payroll service | Fastify app bundled into the business Next.js project, served at `/api/bridge/*` on Vercel |
 | Database | Neon Postgres via the Vercel Marketplace, Prisma, one schema per token |
 | Settlement | USDC and Agora AUSD; Agora Instant Settlement pair for send-abroad and cash-out |
 | Indexing | Envio HyperSync feeds vault events into Postgres with a persisted cursor |
+| Testing | Forge unit/fuzz/invariant, Vitest, Node test runner, CDP live agent with virtual passkey, Slither |
+| Hosting | Vercel (two projects: business and employee) |
 
-Bounty focus: **Agora cross-border payments**, **Best Mera-Powered UX**, **Mera: One Passkey, Many Keys** and **Best Use of Envio**.
+Bounty focus: **Agora cross-border payments**, **Best Mera-Powered UX**, **Mera: One Passkey, Many Keys**, **Best Use of Envio** and **Best Projects using Alchemy**.
 Privy was removed so Mera is the entire account layer.
 
 ---
@@ -470,6 +510,10 @@ Privy was removed so Mera is the entire account layer.
 - [x] Withholding remittance flow: "Send to tax account" on the business Funding page calls `remitWithholding`
 - [ ] Over-estimate recovery demo
 - [ ] Clock-in/out PWA for workers — employer starts/ends verified shifts from the business dashboard instead
+- [x] Monthly salary mode (monthly ÷ 720 h, up to 31 days)
+- [x] Self-serve companies with daily gas budgets
+- [x] Minimum sponsored withdrawal and weekly free allowance
+- [x] Private payslips (second PRF namespace)
 
 ### Nice to have
 - [ ] Overtime multipliers
@@ -481,21 +525,21 @@ Credit or advances, a token, governance, cross-chain, tax filing, a full HR suit
 
 ---
 
-## 11. Demo script (3 min cap)
+## 11. Demo script (3 min cap) — as recorded
 
-The video shows the live product only, no slides, and opens real transactions on the Monad explorer.
+The submitted demo (2:09) is a real run on the live sites with no slides, narrated:
 
-**0:00–0:20 — the problem.** *"Twelve million people pay billions a year in payday fees to reach wages they already earned."*
-
-**0:20–1:00 — business.** Passkey sign-in on the business site. Fund payroll with AUSD, add a worker, start the shift.
-
-**1:00–1:40 — employee.** The phone balance ticks up every second. Tap **Withdraw**; the money arrives in about a second, gas paid by the employer.
-
-**1:40–2:10 — proof on Monad.** Open the withdrawal on the Monad testnet explorer: status, vault address, AUSD amount.
-
-**2:10–2:40 — cross-border.** Send AUSD home through Agora Instant Settlement; open that receipt too. Show a private payslip.
-
-**2:40–3:00 — close.** *"We're not a better advance. We removed the gap."* Show both site links and the repository.
+1. Business signs up with one passkey; company created on chain, fee sponsored.
+2. Funds payroll with 10,000 test AUSD from Agora's faucet.
+3. Employee creates her passkey on the phone and shares her address.
+4. Business registers and funds her (shift pay, 10% withholding, 200 AUSD).
+5. Manager starts a verified shift (attestor signs, relayer pays gas).
+6. Her payroll appears automatically; the balance grows every second.
+7. She withdraws 2.25 AUSD; gas paid by the employer.
+8. MonadScan receipt: success, called the vault, AUSD to her address.
+9. She sends AUSD home through Agora Instant Settlement; receipt shown.
+10. Private payslip saved.
+11. Manager ends the shift; tax escrow and Envio-indexed history; close.
 
 ---
 
@@ -530,7 +574,11 @@ The EWA market at **$9.2B (2025) → $38.4B (2034)** is the right comparable, be
 
 Concede the limit honestly: for a single domestic employer with a trusted payroll provider, a well-built internal system could do much of this. The argument strengthens with contractors, multiple jurisdictions, and workers who have reason not to trust the employer's numbers.
 
-### Traction targets for 7 days
+### Traction status (13 Oct 2026)
+
+No users, employers or payroll volume yet; none are claimed. The product is live for anyone to try, and any business can self-onboard. Next: a user test with classmates and a campus pilot.
+
+### Traction targets for 7 days (original plan)
 
 - **8–12 conversations** with shift employers or gig platforms. One question: *do you offer earned wage access, and what does it cost you?*
 - **2–3 workers** who use the PWA through a real simulated shift and say whether the ticking balance changes how they feel.
@@ -541,7 +589,7 @@ Claim no payroll volume, employers or users you do not have.
 
 ### Business model
 
-- Per active worker per month, paid by the employer
+- Per active worker per month, paid by the employer: proposed ₹49 (about US$0.60), network fees included
 - Optional treasury yield on the funded-but-unwithdrawn float — **disclose this**, because it is exactly where the incentives could turn predatory
 - Never a worker-side fee. That is the product.
 
@@ -555,7 +603,8 @@ Claim no payroll volume, employers or users you do not have.
 | EWA providers (Earnin, DailyPay, Payactiv) | Charge ~90% of users a fee per access; still a batch cycle with a lender bolted on |
 | Weekly or daily payroll runs | Still a batch, just a shorter one. Doesn't help on day three |
 | Streaming protocols (Sablier, Superfluid) | Stream a committed amount on a schedule. No attested work, no funded ceiling, no withholding — a vesting schedule, not a wage |
-| `Flow` (2nd place, Blitz) | Per-second value streaming on Monad — closest precedent. Read it and state the difference: attestation, funding caps, withholding |
+| ShramPay, FlowPay (Monad projects) | Per-second wage or salary streams on Monad testnet. No signed shifts, no funded ceiling enforcement, no tax escrow, wallet-based sign-in |
+| TickPay (3rd, Monad AI hackathon payments track) | Usage-based micro-streaming: a customer pays a service per second. Opposite direction (purchase, not wages); no work attestation or withholding |
 
 ---
 
@@ -569,6 +618,7 @@ Claim no payroll volume, employers or users you do not have.
 | **Employer underfunds** | Runway alarm; accrual stops at the ceiling. Workers see real numbers, not promises |
 | **Attestor key compromise** | Bounded by funded allocation; rotation is one transaction; corrections possible on future accrual |
 | **Regulatory surface (withholding, minimum wage)** | Scope to one jurisdiction for the pitch; present withholding as a hook, not a compliance claim |
+| **No users yet** | Run a classmate user test and a campus pilot; claim nothing until measured |
 | **No real employer yet** | Judges and any business can self-onboard with a passkey; free campus pilot planned |
 | **Relayer gas cost** | Daily per-company budgets; minimum sponsored withdrawal and 5 free a week, then direct withdrawal |
 | **Float yield looks predatory** | Disclose it in the pitch before anyone asks |
@@ -653,12 +703,17 @@ ShiftPay/
 - [ ] Public repo (owner must switch visibility to public), MIT licence
 - [x] Dependencies and AI-tool use declared in the README
 - [x] Contracts deployed on Monad testnet, addresses in the README
+- [x] Live product link (employee app) on Monad testnet
 - [x] Benchmark run on testnet and documented
-- [ ] Demo video ≤ 3 minutes, public link
+- [x] Demo video ≤ 3 minutes, product only (made; upload pending)
+- [x] Pitch video ≤ 2 minutes with team intro (made; upload pending)
+- [x] Agora bounty video ≤ 2 minutes (made; upload pending)
+- [x] Logo ≥ 500 px for the form
 - [x] Track 02 — Consumer Products & Payments
-- [x] Agora, Mera and Envio requirements mapped line by line in [BOUNTIES.md](BOUNTIES.md)
-- [x] Agora: mobile app, Mera onboarding, AUSD send, Instant Settlement, confirmed on chain
+- [x] Agora, Mera, Envio and Alchemy answers written; requirements mapped in [BOUNTIES.md](BOUNTIES.md)
+- [ ] Alchemy bounty selected on the portal
 - [x] Security review and Slither triage ([SECURITY.md](SECURITY.md)); limitations and roadmap ([LIMITATIONS.md](LIMITATIONS.md))
+- [ ] Form submitted (checklist 6/6) before 14 Oct, 09:29 IST
 
 ---
 
@@ -672,6 +727,8 @@ ShiftPay/
 >
 > ShiftPay deletes the gap. You clock in, your balance rises, you take it whenever you want, and it costs you nothing — because there's no advance to charge for. Nothing is ever lent. You can only draw what you've worked for and what's already funded.
 >
+> I'm Lakshmikanth S, a final-year student at Loyola-ICAM College of Engineering and Technology in Chennai, building ShiftPay solo.
+>
 > At two p.m. an entire warehouse clocks out at once. Every one of those attestations is independent, and we built the accounting so none of them collide.
 >
 > **We're not a better advance. We removed the thing you'd be advancing against.**
@@ -679,6 +736,8 @@ ShiftPay/
 ---
 
 ## 20. Judge Q&A
+
+**How is this different from ShramPay, FlowPay or TickPay?** They stream money on a timer or charge per second of usage. ShiftPay pays wages: funded first, tied to signed shifts, tax withheld, never clawed back, and the worker never sees crypto.
 
 **Isn't this just token streaming?** Streaming pays out a committed amount on a clock. ShiftPay accrues against **attested work**, caps at **funded balance**, withholds tax, and recovers over-estimates from future earnings only. Those four things are what make it a wage.
 
