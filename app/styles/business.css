@@ -55,6 +55,7 @@
   .b-main{padding:18px 16px 40px!important}.b-grid,.b-form{grid-template-columns:1fr}.b-top h1{font-size:26px}
 }
 .b-pitch{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;padding:6px 12px;border-radius:99px;background:var(--b-accent);color:var(--b-brand);font-size:12px;font-weight:800;text-decoration:none;letter-spacing:.02em}
+.b-disputes{margin:6px 0;padding-left:18px;display:flex;flex-direction:column;gap:4px}.b-disputes small{color:var(--b-muted)}
 .b-pitch.ghost{background:transparent;color:inherit;border:1px solid currentColor}
 .b-floating{position:fixed;top:calc(16px + env(safe-area-inset-top,0px));right:16px;display:flex;gap:8px;z-index:5}
 .b-pitch.floating{position:fixed;top:calc(16px + env(safe-area-inset-top,0px));right:16px}

@@ -48,6 +48,7 @@
 .m-shell .m-actions{padding:0}.m-shell .m-tabs{padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));margin:0}
 .m-shell .m-tabs{left:50%}
 .m-pitch{margin-left:auto;font-size:11px;font-weight:800;padding:4px 10px;border-radius:99px;background:var(--m-accent);color:var(--m-brand);text-decoration:none}.m-pitch+.m-net{margin-left:6px}
+.m-dispute{margin-top:12px}.m-dispute summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--m-muted)}.m-dispute textarea{width:100%;font:inherit}
 .m-other{background:transparent;color:inherit;border:1px solid currentColor}
 .m-other+.m-pitch{margin-left:6px}
 /* Keep the bottom tab bar inside the phone frame (overrides the global nav reset above). */

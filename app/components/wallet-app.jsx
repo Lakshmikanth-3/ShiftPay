@@ -69,6 +69,19 @@ function Login(){
     <p className="m-fine">One fingerprint or face scan creates your account. No seed phrase, no app to install, no password. Use the same passkey on any device to get back in.</p></div>;
 }
 
+/** The worker can flag hours or pay that look wrong. Signed with the passkey; the employer sees it on their dashboard. */
+function ShiftDispute({p}){
+  const [note,setNote]=useState(''),[sent,setSent]=useState(false);
+  return <details className="m-form m-dispute"><summary>Something wrong with my hours or pay?</summary>
+    {sent?<p className="m-muted">Reported. Your employer sees this on their dashboard, signed by your passkey.</p>
+    :<form onSubmit={async e=>{e.preventDefault();if(await p.loadDashboard({dispute:{note:note.trim()}})){setSent(true);setNote('');}}}>
+      <label>What looks wrong?<textarea rows={3} minLength={3} maxLength={500} required value={note} onChange={e=>setNote(e.target.value)} placeholder="e.g. My shift on Monday ended at 6 pm, not 4 pm."/></label>
+      <button className="m-ghost wide" disabled={p.busy||note.trim().length<3}>{p.busy?'Signing…':'Report to my employer'}</button>
+      <p className="m-muted">Signed with your passkey so it can't be faked. Your employer can correct the shift; money you already withdrew is never taken back.</p>
+    </form>}
+  </details>;
+}
+
 function Wages({w}){
   const p=w.p,[id,setId]=useState('');
   const key=w.account?'shiftpay:worker:'+p.asset+':'+w.account.toLowerCase():null;
@@ -103,6 +116,7 @@ function Wages({w}){
     <button className="m-primary wide" disabled={p.disabled||x.worker.flags!==1||BigInt(x.claimable)===0n} onClick={()=>{p.setAmount(formatUnits(BigInt(x.claimable),p.cfg.decimals));dialog.current.showModal()}}>Withdraw to my wallet</button>
     {p.cfg.withdrawalPolicy&&BigInt(x.claimable)>0n&&BigInt(x.claimable)<BigInt(p.cfg.withdrawalPolicy.minSponsoredAmount)&&<p className="m-muted">Free withdrawals start at {formatUnits(BigInt(p.cfg.withdrawalPolicy.minSponsoredAmount),p.cfg.decimals)} {p.asset}. Below that, withdraw your whole balance.</p>}
     {p.pending&&<p className="m-alert" role="status">{p.pending.label}: confirming on Monad…</p>}
+    <ShiftDispute p={p}/>
     <dialog ref={dialog} className="m-sheet"><h3>Withdraw earned wages</h3><form onSubmit={e=>{e.preventDefault();p.withdraw();dialog.current.close()}}><label>Amount ({p.asset})<input inputMode="decimal" value={p.amount} onChange={e=>p.setAmount(e.target.value)} required/></label><p className="m-muted">Your employer pays the network fee{p.cfg.withdrawalPolicy?<> for {p.cfg.withdrawalPolicy.freePerWeek} withdrawals a week of at least {formatUnits(BigInt(p.cfg.withdrawalPolicy.minSponsoredAmount),p.cfg.decimals)} {p.asset} (or your whole balance)</>:null}. Funds arrive in this wallet.</p><div className="m-row"><button type="button" className="m-ghost" onClick={()=>dialog.current.close()}>Cancel</button><button className="m-primary">Confirm</button></div></form></dialog>
   </section>;
 }

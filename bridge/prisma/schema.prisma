@@ -164,3 +164,13 @@ model PrivateVault {
   ciphertext String
   updatedAt  DateTime @updatedAt
 }
+
+/// A worker's signed report that a shift or payment looks wrong. Readable by that worker and their company.
+model ShiftDispute {
+  id        String   @id @default(cuid())
+  workerId  String
+  note      String
+  createdAt DateTime @default(now())
+
+  @@index([workerId, createdAt])
+}

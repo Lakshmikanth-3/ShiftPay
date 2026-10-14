@@ -7,7 +7,7 @@ import {HttpError,type Ctx} from './context.js';
 import {queryPayrollEvents} from './envio.js';
 import {requireServed,servedEmployer,employerWorkerIds} from './employers.js';
 export const accessTypes={Access:[{name:'workerId',type:'uint256'},{name:'deadline',type:'uint64'},{name:'payloadHash',type:'bytes32'}]} as const;
-const dataSchema=z.object({companyName:z.string().trim().min(1).max(100).optional(),employee:z.object({workerId:z.string().regex(/^[1-9]\d*$/),name:z.string().trim().min(1).max(100),role:z.string().trim().min(1).max(100),department:z.string().trim().min(1).max(100),notes:z.string().max(2000).optional()}).strict().optional()}).strict();
+const dataSchema=z.object({companyName:z.string().trim().min(1).max(100).optional(),employee:z.object({workerId:z.string().regex(/^[1-9]\d*$/),name:z.string().trim().min(1).max(100),role:z.string().trim().min(1).max(100),department:z.string().trim().min(1).max(100),notes:z.string().max(2000).optional()}).strict().optional(),dispute:z.object({note:z.string().trim().min(3).max(500)}).strict().optional()}).strict();
 const requestSchema=z.object({address:z.string().refine(isAddress),employerId:z.string().regex(/^[1-9]\d*$/).optional(),workerId:z.string().regex(/^\d+$/),deadline:z.string().regex(/^\d+$/),signature:z.string().refine(isHex),data:dataSchema}).strict();
 export function payloadHash(data:unknown){return keccak256(toBytes(JSON.stringify(data)));}
 const wait=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -124,9 +124,11 @@ export function dashboardRoutes(app:FastifyInstance,ctx:Ctx){
     const admin=body.address.toLowerCase()===employer.admin.toLowerCase();
     if(!admin){if(workerId===0n)throw new HttpError(403,'Company account required.','forbidden');const worker=await ctx.chain.readWorker(workerId);if(!body.employerId)employerId=worker.employerId;if(worker.employerId!==employerId||!(await servedEmployer(ctx,worker.employerId))||worker.flags===0||worker.payoutAddr.toLowerCase()!==body.address.toLowerCase())throw new HttpError(403,'Registered employee account required.','forbidden');}
     const valid=await verifyTypedData({address:body.address as Address,domain:{name:'MetronomeAccess',version:'1',chainId:ctx.cfg.chainId,verifyingContract:ctx.chain.vault},types:accessTypes,primaryType:'Access',message:{workerId,deadline,payloadHash:payloadHash((req.body as {data:unknown}).data)},signature:body.signature as Hex});if(!valid)throw new HttpError(401,'Registered account signature required.','bad_signature');
-    if(Object.keys(body.data).length&&!admin)throw new HttpError(403,'Only the company can edit HR details.','forbidden');
+    // Employees may only file a dispute about their own pay; every other write is the company's.
+    if(Object.keys(body.data).some(k=>k!=='dispute')&&!admin)throw new HttpError(403,'Only the company can edit HR details.','forbidden');
+    if(body.data.dispute&&admin)throw new HttpError(403,'Disputes are filed by the employee.','forbidden');
     if(body.data.employee){const worker=await ctx.chain.readWorker(BigInt(body.data.employee.workerId));if(worker.flags===0||worker.employerId!==employerId)throw new HttpError(403,'Register the employee on chain before saving HR details.','wrong_employer');}
-    if(Object.keys(body.data).length){const signatureHash=keccak256(body.signature.toLowerCase() as Hex);await ctx.prisma.$transaction(async tx=>{const consumed=await tx.consumedAuthorization.findUnique({where:{id:signatureHash}});if(consumed)return;await tx.consumedAuthorization.create({data:{id:signatureHash,deadline}});if(body.data.companyName)await tx.companyProfile.upsert({where:{id:employerId.toString()},create:{id:employerId.toString(),name:body.data.companyName},update:{name:body.data.companyName}});if(body.data.employee){const profile=body.data.employee;await tx.workerProfile.upsert({where:{workerId:profile.workerId},create:profile,update:profile});}});}
+    if(Object.keys(body.data).length){const signatureHash=keccak256(body.signature.toLowerCase() as Hex);await ctx.prisma.$transaction(async tx=>{const consumed=await tx.consumedAuthorization.findUnique({where:{id:signatureHash}});if(consumed)return;await tx.consumedAuthorization.create({data:{id:signatureHash,deadline}});if(body.data.companyName)await tx.companyProfile.upsert({where:{id:employerId.toString()},create:{id:employerId.toString(),name:body.data.companyName},update:{name:body.data.companyName}});if(body.data.employee){const profile=body.data.employee;await tx.workerProfile.upsert({where:{workerId:profile.workerId},create:profile,update:profile});}if(body.data.dispute){if(await tx.shiftDispute.count({where:{workerId:body.workerId,createdAt:{gt:new Date(Date.now()-24*3600_000)}}})>=5)throw new HttpError(429,'You can report up to 5 problems a day.','rate_limited');await tx.shiftDispute.create({data:{workerId:body.workerId,note:body.data.dispute.note}});}});}
     const progress=await scan();
     const ids=await roster(employerId),key=employerId+':'+ids.join(',');
     if(!snapshot||snapshotKey!==key||Date.now()-snapshotAt>5000){
@@ -138,8 +140,9 @@ export function dashboardRoutes(app:FastifyInstance,ctx:Ctx){
     const profiles=await ctx.prisma.workerProfile.findMany({where:{workerId:{in:[...visible] as string[]}}});
     const company=await ctx.prisma.companyProfile.findUnique({where:{id:employerId.toString()}});
     const events=await ctx.prisma.vaultEvent.findMany({where:{eventName:{in:['Withdrawn','TaxEscrowed','Funded']},workerId:{in:[...visible] as string[]}},orderBy:[{blockNumber:'desc'},{logIndex:'desc'}],take:500});
+    const disputes=await ctx.prisma.shiftDispute.findMany({where:{workerId:{in:[...visible] as string[]}},orderBy:{createdAt:'desc'},take:100});
     const payments=events.map(e=>({id:e.id,workerId:e.workerId,type:e.eventName,amount:e.amount,hash:e.hash,blockNumber:e.blockNumber,status:'CONFIRMED'}));
-    return {company,workers:workers.map((w:any)=>({...w,profile:profiles.find(p=>p.workerId===w.workerId)||null})),payments,progress,heldTax:admin?heldTax:undefined,readAt:workers[0]?.readAt??null};
+    return {company,workers:workers.map((w:any)=>({...w,profile:profiles.find(p=>p.workerId===w.workerId)||null,disputes:disputes.filter(d=>d.workerId===w.workerId)})),payments,progress,heldTax:admin?heldTax:undefined,readAt:workers[0]?.readAt??null};
   });
   /** Stateless recovery: the employee app finds its payroll from the passkey address alone. */
   app.get<{Params:{address:string}}>('/workers/by-address/:address',async(req)=>{

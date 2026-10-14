@@ -121,7 +121,7 @@ function Workspace({children}){
   },[pending,cfg,storageKey]);
   async function execute(task){
     if(lock.current)return;lock.current=true;setBusy(true);setError('');setNotice('');
-    try{if(!authenticated||!wallet)throw new Error('Log in and finish wallet setup first.');if(!online)throw new Error('Reconnect before submitting payroll actions.');await task();}catch(e){setError(errorText(e));}finally{lock.current=false;setBusy(false);}
+    try{if(!authenticated||!wallet)throw new Error('Log in and finish wallet setup first.');if(!online)throw new Error('Reconnect before submitting payroll actions.');await task();return true;}catch(e){setError(errorText(e));return false;}finally{lock.current=false;setBusy(false);}
   }
   async function walletClient(){if(wallet?.walletClientType!=='mera')throw new Error('Unlock your payroll passkey first.');if(await client.getChainId()!==chain.id)throw new Error('Payroll RPC chain mismatch.');return wallet.client;}
   async function authorizeDashboard(data={}){
@@ -131,9 +131,9 @@ function Workspace({children}){
     const w=await walletClient(),signature=await w.signTypedData({domain:{name:'MetronomeAccess',version:'1',chainId:cfg.chainId,verifyingContract:cfg.vault},types:{Access:[{name:'workerId',type:'uint256'},{name:'deadline',type:'uint64'},{name:'payloadHash',type:'bytes32'}]},primaryType:'Access',message:{workerId:BigInt(id),deadline,payloadHash:keccak256(toBytes(JSON.stringify(data)))}});
     const proof={address:wallet.address,...(admin?{employerId:String(cfg.employerId)}:{}),workerId:id,deadline:deadline.toString(),signature,data};
     const result=await api('dashboard',proof);if(epoch!==dashboardEpoch.current)return;
-    setDashboard(result);setDashboardError('');if(Object.keys(data).length===0)access.current=proof;else{access.current=null;setNotice('Profile saved. Open verified dashboard to refresh account access.');}
+    setDashboard(result);setDashboardError('');if(Object.keys(data).length===0)access.current=proof;else{access.current=null;setNotice(data.dispute?'Problem reported to your employer.':'Profile saved. Open verified dashboard to refresh account access.');}
   }
-  async function loadDashboard(data={}){await execute(()=>authorizeDashboard(data));}
+  async function loadDashboard(data={}){return await execute(()=>authorizeDashboard(data));}
   useEffect(()=>{dashboardEpoch.current++;access.current=null;setDashboard(null);setDashboardError('');},[asset,wallet?.address,authenticated]);
   useEffect(()=>{if(admin)return;dashboardEpoch.current++;access.current=null;setDashboard(null);setDashboardError('');},[selected]);
   useEffect(()=>{if(!dashboard||!access.current)return;const timer=setInterval(async()=>{if(dashboardPolling.current)return;if(BigInt(access.current.deadline)<=BigInt(Math.floor(Date.now()/1000))){access.current=null;setDashboard(null);setDashboardError('Account access expired. Open the verified dashboard again.');return;}dashboardPolling.current=true;const epoch=dashboardEpoch.current;try{const result=await api('dashboard',access.current);if(epoch===dashboardEpoch.current){setDashboard(result);setDashboardError('');}}catch(e){/* A failed refresh keeps the last good dashboard; only an expired authorization clears it. */if(epoch===dashboardEpoch.current&&/expired|signature required|forbidden/i.test(e.message||'')){setDashboardError(errorText(e));setDashboard(null);}}finally{dashboardPolling.current=false;}},5000);return()=>clearInterval(timer);},[dashboard,cfg]);
