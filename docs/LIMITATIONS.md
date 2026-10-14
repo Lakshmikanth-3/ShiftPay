@@ -12,5 +12,7 @@ ShiftPay is a working testnet product. This is the honest list of what it does n
 | Testnet cash-out | AUSD sent abroad via Agora Instant Settlement in one transaction | Licensed off-ramp partner for bank/UPI payouts; real AUSD pairs on mainnet |
 | Centralised service parts | Each company can register its own attestor (`createEmployer`); workers can always call `withdraw()` themselves without the relayer; multiple relayer keys supported | Per-company attestor keys by default; independent relayers |
 | Parallelism at small scale | 96/96 transactions on testnet, about 2 s; reported honestly with no shard advantage at 16 workers ([benchmark](../benchmark/README.md)) | Rerun with hundreds of workers from several senders |
+| Lost passkey | Passkeys sync via Google Password Manager or iCloud Keychain; same passkey restores the account on a new phone | Employer-assisted payout-address recovery for a fully lost passkey |
+| Employer top-up | Funding page per employee; runway warning | Automatic top-up |
 | Web app, not a store app | Installable mobile web app; passkeys work like a native app | Android Trusted Web Activity for the Play Store |
 | No revenue yet | Business model: monthly fee per active employee, paid by the employer; no worker fees | Free campus pilot, then paid after 30 days |
