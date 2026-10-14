@@ -131,7 +131,7 @@ function Workspace({children}){
     const w=await walletClient(),signature=await w.signTypedData({domain:{name:'MetronomeAccess',version:'1',chainId:cfg.chainId,verifyingContract:cfg.vault},types:{Access:[{name:'workerId',type:'uint256'},{name:'deadline',type:'uint64'},{name:'payloadHash',type:'bytes32'}]},primaryType:'Access',message:{workerId:BigInt(id),deadline,payloadHash:keccak256(toBytes(JSON.stringify(data)))}});
     const proof={address:wallet.address,...(admin?{employerId:String(cfg.employerId)}:{}),workerId:id,deadline:deadline.toString(),signature,data};
     const result=await api('dashboard',proof);if(epoch!==dashboardEpoch.current)return;
-    setDashboard(result);setDashboardError('');if(Object.keys(data).length===0)access.current=proof;else{access.current=null;setNotice(data.dispute?'Problem reported to your employer.':'Saved.');/* A write is single-use; sign a fresh read-only access proof so the dashboard keeps refreshing. */setTimeout(()=>{if(epoch===dashboardEpoch.current)authorizeDashboard({}).catch(()=>{});},0);}
+    setDashboard(result);setDashboardError('');if(Object.keys(data).length===0)access.current=proof;else{access.current=null;setNotice(data.dispute?'Problem reported to your employer.':'Profile saved. Open verified dashboard to refresh account access.');}
   }
   async function loadDashboard(data={}){return await execute(()=>authorizeDashboard(data));}
   useEffect(()=>{dashboardEpoch.current++;access.current=null;setDashboard(null);setDashboardError('');},[asset,wallet?.address,authenticated]);
